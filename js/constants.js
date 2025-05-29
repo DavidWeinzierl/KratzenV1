@@ -108,7 +108,7 @@ export function getCardImageFilename(card) {
 
     // Special case for Weli
     if (card.rank === WELI_RANK) { // WELI_RANK should be 'W'
-        return 'jpg.png';
+        return 'weli.jpg';
     }
 
     // Standard cards
