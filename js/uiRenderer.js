@@ -214,9 +214,9 @@ export function renderGame(gameState) {
         let dealerIndicator = (player.id === gameState.dealerIndex) ? ' <span class="dealer-indicator">DEALER</span>' : '';
         const playerNameHTML = `<p>${player.name} (P${player.id})${dealerIndicator}</p>`;
         const statusHTML = `<p>Status: ${player.status}</p>`;
-        const pointsHTML = `<p>Points: ${player.points.toFixed(1)}</p>`;
+        const pointsHTML = `<p>Punkte: ${player.points.toFixed(1)}</p>`;
         let trickDisplay = player.tricksWonThisRound > 0 ? `<span class="tricks-highlight">${player.tricksWonThisRound}</span>` : player.tricksWonThisRound;
-        const tricksHTML = `<p>Tricks: ${trickDisplay}</p>`;
+        const tricksHTML = `<p>Stiche: ${trickDisplay}</p>`;
         const bidHTML = `<p>Bid: ${player.currentBid || '-'}</p>`;
         let actionText = player.lastActionLog || '-';
          if (player.id === gameState.turnPlayerIndex && !gameState.isWaitingForBidInput && !gameState.isAnimating) { 
