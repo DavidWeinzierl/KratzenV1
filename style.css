@@ -4,73 +4,72 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-color: #292828; /* --- NEW: Dark gray background for the page --- */
-    color: #e0e0e0; /* Optional: Lighten default text color for contrast */
+    background-color: #292828; 
+    color: #e0e0e0; 
 }
 
 #game-board {
     border: 1px solid black;
     padding: 10px;
     margin-bottom: 10px;
-    position: relative; /* For positioning player areas AND FLYING CARDS */
-    width: 1600px; /* Doubled width */
-    height: 700px; /* Increased height slightly */
-    box-sizing: border-box; /* Include padding/border in width/height */
+    position: relative; 
+    width: 1600px; 
+    height: 700px; 
+    box-sizing: border-box; 
 
-    background-image: url('img/felt.png'); /* Assuming felt.png is in an img folder */
-    background-repeat: repeat;          /* Tile the image */
-    background-color: #006400;          /* Dark green fallback color if image fails */
-    border-radius: 25px;                /* Add rounded corners */
-    overflow: hidden;                   /* Clip content spilling outside rounded corners */
+    background-image: url('img/felt.png'); 
+    background-repeat: repeat;          
+    background-color: #006400;          
+    border-radius: 25px;                
+    overflow: hidden;                   
 
-    background-size: 200px 200px;       /* Resize image to 100x100px before tiling */
+    background-size: 200px 200px;       
 }
 
 .player-area {
-    border: 1px dashed rgba(220, 220, 220, 0.6); /* Lighter dashed border */
+    border: 1px dashed rgba(220, 220, 220, 0.6); 
     padding: 8px;
-    min-height: 140px; /* Slightly more height */
+    min-height: 140px; 
 
-    width: 38%; /* Adjust width as needed */
-    position: absolute; /* Simple positioning example */
-    display: flex; /* Key change: Use Flexbox for side-by-side */
-    align-items: center; /* Vertically center items */
-    gap: 15px; /* Space between info and hand */
+    width: 38%; 
+    position: absolute; 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
     box-sizing: border-box;
-    background-color: rgba(245, 245, 245, 0.5); /* Slightly less transparent white background */
-    color: #333; /* Ensure text inside player areas is dark */
-    border-radius: 12px; /* Slightly rounded corners for player areas too */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+    background-color: rgba(245, 245, 245, 0.5); 
+    color: #333; 
+    border-radius: 12px; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
 }
 
-/* Adjust positioning for wider board */
-.player-area-top { /* Player 3 (index 2) */
+.player-area-top { 
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    justify-content: center; /* Center flex items */
+    justify-content: center; 
 }
 
-.player-area-left { /* Player 2 (index 1) */
+.player-area-left { 
     top: 50%;
     left: 10px;
     transform: translateY(-50%);
 }
-.player-area-right { /* Player 4 (index 3) */
+.player-area-right { 
     top: 50%;
     right: 10px;
     transform: translateY(-50%);
 }
-.player-area-bottom { /* Player 1 (index 0) */
+.player-area-bottom { 
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    justify-content: center; /* Center flex items */
+    justify-content: center; 
 }
 
 .player-info {
-    flex-basis: 160px; /* Fixed width for info section */
-    flex-shrink: 0; /* Prevent info from shrinking */
+    flex-basis: 160px; 
+    flex-shrink: 0; 
     text-align: left;
     font-size: 0.9em;
     padding-right: 10px;
@@ -80,13 +79,34 @@ body {
 }
 
 .player-hand {
-    display: flex;
-    gap: 5px; /* Space between cards */
-    flex-grow: 1; /* Hand takes remaining space */
-    justify-content: flex-start; /* Align cards to the left */
-    flex-wrap: wrap; /* Allow cards to wrap if too many */
-    padding-left: 5px; /* Add some padding from the edge */
+    display: flex; /* Default for up to 5 cards */
+    /* gap: 5px; /* Applied dynamically or via card margin */
+    flex-grow: 1; 
+    justify-content: flex-start; 
+    /* flex-wrap: wrap; /* REMOVED - We will handle overflow by fanning */
+    padding-left: 5px; 
+    position: relative; /* Crucial for absolute positioning of fanned cards */
+    /* min-height: 110px; /* Ensure enough height for cards, adjust as needed */
+    /* max-width: calc((72px * 5) + (5px * 4) + 10px); /* Approx width for 5 cards side-by-side + padding */
+    /* Or a more fixed width, e.g., 400px, and cards will distribute within it */
+    width: 380px; /* Fixed width for hand area to contain fanned cards */
+    height: 120px; /* Enough height for normal and slightly fanned cards */
+    overflow: visible; /* Allow fanned cards to slightly go out if needed, or clip if preferred */
 }
+
+/* Default styling for cards when NOT fanned (<= 5 cards) */
+.player-hand .card-image {
+    position: relative; /* Changed from absolute for normal flow */
+    margin-right: 5px; /* Simulates gap */
+    /* z-index will be default or managed by order */
+}
+
+/* Styling for cards when fanned (> 5 cards) will be applied inline via JS */
+/* .player-hand.fanned .card-image {
+    position: absolute;
+    bottom: 0; /* Or align as needed */
+/* transform-origin: bottom center; /* Example for fanning */
+/* } */
 
 
 #center-area {
@@ -97,8 +117,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: auto; /* Let content define width */
-    gap: 10px; /* Add gap between game info and trick area */
+    width: auto; 
+    gap: 10px; 
 }
 
 
@@ -207,7 +227,9 @@ body {
     border-radius: 4px;
     box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
     background-color: #eee;
-    display: block;
+    display: block; /* Ensures it takes up space and respects margins */
+    /* transition for smooth fan changes if needed, but direct style set might be fine */
+    /* transition: transform 0.3s ease, left 0.3s ease; */ 
 }
 
 .card-image-placeholder {
@@ -216,15 +238,12 @@ body {
     display: block;
 }
 
-/* NEW: Styles for the flying card animation */
 .flying-card {
-    position: absolute; /* Relative to #game-board */
-    z-index: 1000; /* Ensure it's on top */
+    position: absolute; 
+    z-index: 1000; 
     opacity: 1;
-    /* transition-duration will be set by JS */
-    transition-property: transform, opacity; /* Animate transform and opacity */
+    transition-property: transform, opacity; 
     transition-timing-function: ease-in-out;
-    /* transform-origin for any flip/spin effects */
     transform-origin: center center;
 }
 
@@ -232,7 +251,7 @@ body {
 #controls {
     margin: 15px 0;
     display: flex;
-    gap: 10px; /* Adjusted gap for new slider */
+    gap: 10px; 
     align-items: center;
     color: #e0e0e0;
 }
@@ -286,9 +305,9 @@ body {
 }
 
 .player-action-log {
-    color: #d10049;
+    color: #0056b3;
     font-style: italic;
-    font-size: 1 em;
+    font-size: 0.85em;
     margin-top: 5px !important;
 }
 

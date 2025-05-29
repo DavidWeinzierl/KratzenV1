@@ -107,12 +107,15 @@ async function replenishTalonIfNeeded() {
     return true;
 }
 
+// From js/controller.js
+
 async function _processChosenBid(player, chosenBid, stage, gameState) {
     player.currentBid = chosenBid;
     player.lastActionLog = `Bid: ${chosenBid}`;
     player.hasBid = true;
 
     if (stage === GAME_PHASE.BIDDING_STAGE_1) {
+        // ... (Stage 1 logic for Sneak, Oder, Weiter remains the same) ...
         switch (chosenBid) {
             case BID_OPTIONS.SNEAK:
                 if (gameState.oderPlayer) { logMessage(`Sneak by ${player.name} overrides Oder by ${gameState.oderPlayer.name}.`); gameState.oderPlayer = null; gameState.oderType = null; }
@@ -140,47 +143,75 @@ async function _processChosenBid(player, chosenBid, stage, gameState) {
                 if (!gameState.foldedPile) gameState.foldedPile = [];
 
                 if (player.hand.length > 0) {
-                    logMessage(`Animating ${player.name}'s ${player.hand.length} cards to folded pile.`);
-                    const cardsToFoldData = [...player.hand]; 
+                    logMessage(`Animating ${player.name}'s ${player.hand.length} cards to folded pile concurrently.`);
+                    const playerHandElement = document.querySelector(`#player-area-${player.id} .player-hand`);
+                    const cardsToFoldData = [...player.hand]; // Copy card data before modifying hand
 
+                    const animationPromises = [];
+                    let cardIndexForStagger = 0; // For optional stagger
+
+                    // First, hide all visual cards that will be folded
+                    if (playerHandElement) {
+                        cardsToFoldData.forEach(cardData => {
+                            if (!cardData) return;
+                            const cardVisualElement = Array.from(playerHandElement.querySelectorAll('.card-image'))
+                                .find(img => img && img.alt && img.alt.startsWith(cardData.toString()));
+                            if (cardVisualElement) {
+                                cardVisualElement.style.visibility = 'hidden';
+                            }
+                        });
+                    }
+                    
+                    // Now, start all animations
                     for (const cardData of cardsToFoldData) {
                         if (!cardData) continue;
                         
-                        const playerHandElement = document.querySelector(`#player-area-${player.id} .player-hand`);
-                        if (playerHandElement) void playerHandElement.offsetHeight; // Force reflow
+                        // Since cards are hidden, source for animation can be general hand area
+                        // or, if we want them to *originate* from their distinct spots before vanishing:
+                        // We'd need to get their coordinates *before* hiding them all,
+                        // but for a quick concurrent effect, animating from the hand center is often acceptable.
+                        // Let's assume animating from their now-hidden individual slots is still preferred.
+                        // The getElementCoordinates for a hidden element might be tricky or return 0,0.
+                        // A safer bet for concurrent animation might be to get all coords first, then hide, then animate.
+                        // However, the current animateCardMovement expects a selector OR coords.
+                        // For simplicity and speed, let's animate from the general hand area for all cards if they are concurrently hidden.
+                        // OR, let's try to get original positions if `cardVisualElement` was found,
+                        // even if hidden, some browsers might still provide last known rect.
 
-                        const cardVisualElement = playerHandElement ? Array.from(playerHandElement.querySelectorAll('.card-image'))
-                            .find(img => img && img.alt && img.alt.startsWith(cardData.toString())) : null;
-
-                        let sourceForAnimation = playerHandElement || `#player-area-${player.id}`; 
-                        if (cardVisualElement) {
-                            sourceForAnimation = cardVisualElement;
-                            cardVisualElement.style.visibility = 'hidden';
+                        // Re-query for the visual element for its coordinates, even if hidden
+                        // This relies on the browser still providing reasonable coordinates for hidden elements
+                        // or that getElementCoordinates has a fallback for non-found/hidden elements.
+                        const cardVisualElementForCoords = playerHandElement ? Array.from(playerHandElement.querySelectorAll('.card-image'))
+                                .find(img => img && img.alt && img.alt.startsWith(cardData.toString())) : null;
+                        
+                        let sourceForAnimation = playerHandElement || `#player-area-${player.id}`; // Fallback
+                        if (cardVisualElementForCoords) { // Use the specific (now hidden) card's selector/element for coords
+                             sourceForAnimation = cardVisualElementForCoords;
                         } else {
                             logMessage(`Fold: Card visual for ${cardData.toString()} not found in ${player.name}'s hand. Animating from general hand area.`);
                         }
-                        
-                        await animateCardMovement(
-                            sourceForAnimation,
+
+                        // Optional: Introduce a slight delay for staggering effect
+                        // await new Promise(resolve => setTimeout(resolve, cardIndexForStagger * 50)); // 50ms stagger
+
+                        const animationPromise = animateCardMovement(
+                            sourceForAnimation, // This might be an issue if element is truly gone or coords are 0,0
+                                                // A robust getElementCoordinates should handle fallbacks.
                             '#talon-display', 
                             null, 
-                            currentAnimationSpeed,
+                            currentAnimationSpeed, // Could make fold animation faster by default
                             { isDiscard: true }
                         );
-                        
-                        const removed = player.removeCard(cardData);
-                        if (removed) {
-                            gameState.foldedPile.push(removed);
-                        } else {
-                             console.error(`Fold: Failed to remove card ${cardData.toString()} from ${player.name}'s hand data.`);
-                        }
-                        renderGame(gameState); 
+                        animationPromises.push(animationPromise);
+                        cardIndexForStagger++;
                     }
-                    if (player.hand.length !== 0) {
-                        console.warn(`Fold: ${player.name}'s hand is not empty after folding all cards. Remaining: ${player.hand.length}`);
-                        player.hand = []; 
-                        renderGame(gameState); 
-                    }
+
+                    await Promise.all(animationPromises);
+
+                    // Update data model AFTER all animations are conceptually done
+                    gameState.foldedPile.push(...cardsToFoldData);
+                    player.hand = []; // Clear hand in data model
+                    renderGame(gameState); // Re-render to reflect the empty hand and updated talon/folded counts
                 }
                 break;
         }
@@ -401,7 +432,7 @@ async function processDealerDiscardStep() {
         for (const card of cardsToDiscard) {
             if (!card) continue;
             const playerHandElement = document.querySelector(`#player-area-${dealer.id} .player-hand`);
-            if (playerHandElement) void playerHandElement.offsetHeight; // Force reflow
+            if (playerHandElement) void playerHandElement.offsetHeight; 
 
             const cardVisualElement = playerHandElement ? Array.from(playerHandElement.querySelectorAll('.card-image'))
                 .find(img => img && img.alt && img.alt.startsWith(card.toString())) : null;
@@ -488,79 +519,151 @@ async function processBiddingStep(stage) {
 }
 
 async function processOderResolution() {
-    if (!gameState.oderPlayer || !gameState.sneaker || gameState.oderPlayer !== gameState.sneaker) { logMessage("Oder resolution state error."); gameState.phase = GAME_PHASE.ROUND_END; return; }
-    logMessage(`Resolving Oder (${gameState.oderType}) for ${gameState.sneaker.name}. Drawing new trump...`);
+    if (!gameState.oderPlayer || !gameState.sneaker || gameState.oderPlayer !== gameState.sneaker) { 
+        logMessage("Oder resolution state error: No Oder player or Sneaker mismatch."); 
+        gameState.phase = GAME_PHASE.ROUND_END; 
+        return; 
+    }
+    const sneakerPlayer = gameState.sneaker; 
+    logMessage(`Resolving Oder (${gameState.oderType}) for ${sneakerPlayer.name}. Drawing new trump...`);
     const talonCoords = getElementCoordinates('#talon-display');
     const revealSpot = getElementCoordinates('#game-info .game-info-content');
 
-    let newTrumpCardDeterminer = null; let drawnWeliAsFirstCard = null; let newTrumpSuit = null;
+    let newTrumpCardDeterminer = null;
+    let drawnWeliAsFirstCard = null;
+    let newTrumpSuit = null;
     const originalTrumpSuitIfAny = gameState.originalTrumpCard?.suit;
-    let cardsDrawnThisProcess = []; let success = false;
-    let drawAttempts = 0; const maxDrawAttempts = (gameState.talon?.length || 0) + 10;
+    let cardsDrawnThisProcess = [];
+    let success = false;
+    let drawAttempts = 0;
+    const maxDrawAttempts = (gameState.talon?.length || 0) + 20; 
 
-    while(drawAttempts < maxDrawAttempts && !success) {
+    while (drawAttempts < maxDrawAttempts && !success) {
         drawAttempts++;
         if (gameState.talon.length === 0) {
-            if (! await replenishTalonIfNeeded()) { logMessage("Oder fail: Talon empty, cannot replenish."); break; }
-            renderGame(gameState);
+            if (!(await replenishTalonIfNeeded())) {
+                logMessage("Oder fail: Talon empty, cannot replenish.");
+                break; 
+            }
+            renderGame(gameState); 
         }
-        if (gameState.talon.length === 0) { logMessage("Oder fail: Talon still empty after replenish attempt."); break;}
+        if (gameState.talon.length === 0) { 
+            logMessage("Oder fail: Talon still empty after replenish attempt."); 
+            break; 
+        }
 
-        let cardDrawnData = gameState.talon[gameState.talon.length - 1];
-        await animateCardMovement(talonCoords, revealSpot, cardDrawnData, currentAnimationSpeed, {revealAtEnd: true});
-        cardDrawnData = gameState.talon.pop();
-        if (!cardDrawnData) { logMessage("Oder error: Popped null card."); break; }
+        let cardDrawnData = gameState.talon[gameState.talon.length - 1]; 
+        await animateCardMovement(talonCoords, revealSpot, cardDrawnData, currentAnimationSpeed, { revealAtEnd: true });
+        cardDrawnData = gameState.talon.pop(); 
+        if (!cardDrawnData) { 
+            logMessage("Oder error: Popped null card from talon."); 
+            break; 
+        }
         cardsDrawnThisProcess.push(cardDrawnData);
-        renderGame(gameState);
+        renderGame(gameState); 
 
-        if (cardDrawnData.rank === WELI_RANK && !drawnWeliAsFirstCard) {
+        if (!drawnWeliAsFirstCard && cardDrawnData.rank === WELI_RANK) {
             drawnWeliAsFirstCard = cardDrawnData;
-            logMessage(`Weli drawn for ${gameState.sneaker.name}. Drawing next for suit.`);
-            continue;
-        }
-        newTrumpCardDeterminer = cardDrawnData;
-        if (gameState.oderType === 'mit') {
-            newTrumpSuit = newTrumpCardDeterminer.suit; success = true;
-            logMessage(`Oder Mit: ${newTrumpCardDeterminer} sets trump ${newTrumpSuit}.`);
+            logMessage(`Weli drawn by ${sneakerPlayer.name}. Will draw another card for trump determination.`);
+            if (gameState.talon.length === 0 && !(await replenishTalonIfNeeded())) {
+                logMessage("Oder fail: Talon empty after drawing Weli, cannot draw trump determiner.");
+                success = false; 
+                break; 
+            }
+            renderGame(gameState); 
+            continue; 
         } else {
-            if (!originalTrumpSuitIfAny) {logMessage("Oder Ohne error: No original trump."); success = false; break;}
-            if (newTrumpCardDeterminer.suit !== originalTrumpSuitIfAny) {
-                newTrumpSuit = newTrumpCardDeterminer.suit; success = true;
-                logMessage(`Oder Ohne: ${newTrumpCardDeterminer} (diff from ${originalTrumpSuitIfAny}) sets trump ${newTrumpSuit}.`);
-            } else {
-                logMessage(`Oder Ohne: Drew ${newTrumpCardDeterminer} (matches ${originalTrumpSuitIfAny}), discarding.`);
-                gameState.discardPile.push(newTrumpCardDeterminer); newTrumpCardDeterminer = null;
+            newTrumpCardDeterminer = cardDrawnData;
+            
+            if (gameState.oderType === 'mit') {
+                newTrumpSuit = newTrumpCardDeterminer.suit;
+                success = true;
+                logMessage(`Oder Mit: ${newTrumpCardDeterminer} (drawn by ${sneakerPlayer.name}) sets trump to ${newTrumpSuit}.`);
+            } else { 
+                if (!originalTrumpSuitIfAny) {
+                    logMessage("Oder Ohne error: No original trump suit defined for comparison.");
+                    success = false; 
+                    break; 
+                }
+                if (newTrumpCardDeterminer.suit !== originalTrumpSuitIfAny) {
+                    newTrumpSuit = newTrumpCardDeterminer.suit;
+                    success = true;
+                    logMessage(`Oder Ohne: ${newTrumpCardDeterminer} (drawn by ${sneakerPlayer.name}) sets trump to ${newTrumpSuit} (different from original ${originalTrumpSuitIfAny}).`);
+                } else {
+                    logMessage(`Oder Ohne: Drew ${newTrumpCardDeterminer} (suit ${newTrumpCardDeterminer.suit} matches original ${originalTrumpSuitIfAny}). Discarding and re-drawing.`);
+                    gameState.discardPile.push(newTrumpCardDeterminer);
+                    newTrumpCardDeterminer = null; 
+                }
             }
         }
-    }
+    } 
 
-    if (!success || !newTrumpCardDeterminer) {
-        logMessage("Oder resolution failed.");
-        cardsDrawnThisProcess.forEach(card => { if(card && card !== newTrumpCardDeterminer && card !== drawnWeliAsFirstCard && !gameState.discardPile.some(dp=>dp.key===card.key)) gameState.discardPile.push(card); });
-        if (drawnWeliAsFirstCard && !gameState.discardPile.some(dp=>dp.key===drawnWeliAsFirstCard.key)) gameState.discardPile.push(drawnWeliAsFirstCard);
-        gameState.phase = GAME_PHASE.SCORING; gameState.oderPlayer = null; gameState.oderType = null;
+    if (!success || !newTrumpCardDeterminer) { 
+        logMessage(`Oder resolution failed for ${sneakerPlayer.name}.`);
+        cardsDrawnThisProcess.forEach(card => { 
+            if (card && card !== drawnWeliAsFirstCard && card !== newTrumpCardDeterminer) { 
+                if (!gameState.discardPile.some(dp => dp.key === card.key)) {
+                    gameState.discardPile.push(card);
+                }
+            }
+        });
+        if (drawnWeliAsFirstCard && !success) { 
+             if (!gameState.discardPile.some(dp => dp.key === drawnWeliAsFirstCard.key)) {
+                 gameState.discardPile.push(drawnWeliAsFirstCard);
+             }
+        }
+        if (newTrumpCardDeterminer && !success) { 
+             if (!gameState.discardPile.some(dp => dp.key === newTrumpCardDeterminer.key)) {
+                 gameState.discardPile.push(newTrumpCardDeterminer);
+             }
+        }
+        
+        gameState.phase = GAME_PHASE.SCORING; 
+        gameState.oderPlayer = null; 
+        gameState.oderType = null;
         return;
     }
 
-    gameState.trumpCard = newTrumpCardDeterminer; gameState.trumpSuit = newTrumpSuit;
-    const sneakerHandCoords = getElementCoordinates(`#player-area-${gameState.sneaker.id} .player-hand`);
-    await animateCardMovement(revealSpot, sneakerHandCoords, newTrumpCardDeterminer, currentAnimationSpeed, {isDealing: true, cardIndexInHand: gameState.sneaker.hand.length});
-    gameState.sneaker.addCards(newTrumpCardDeterminer);
-    if (drawnWeliAsFirstCard) {
-        await animateCardMovement(revealSpot, sneakerHandCoords, drawnWeliAsFirstCard, currentAnimationSpeed, {isDealing: true, cardIndexInHand: gameState.sneaker.hand.length});
-        gameState.sneaker.addCards(drawnWeliAsFirstCard);
-    }
-    renderGame(gameState); gameState.needsOderDiscard = (gameState.sneaker.hand.length > 4);
-    cardsDrawnThisProcess.forEach(c => { if(c && c.key !== newTrumpCardDeterminer.key && (!drawnWeliAsFirstCard || c.key !== drawnWeliAsFirstCard.key) && !gameState.discardPile.some(dp=>dp.key===c.key)) gameState.discardPile.push(c); });
-    gameState.oderPlayer = null; gameState.oderType = null;
+    gameState.trumpCard = newTrumpCardDeterminer; 
+    gameState.trumpSuit = newTrumpSuit;
+    const sneakerHandCoords = getElementCoordinates(`#player-area-${sneakerPlayer.id} .player-hand`);
 
-    gameState.activePlayerOrder = getActivePlayerOrder(gameState);
+    await animateCardMovement(revealSpot, sneakerHandCoords, newTrumpCardDeterminer, currentAnimationSpeed, { isDealing: true, cardIndexInHand: sneakerPlayer.hand.length });
+    sneakerPlayer.addCards(newTrumpCardDeterminer);
+    renderGame(gameState); 
+
+    if (drawnWeliAsFirstCard) {
+        await animateCardMovement(revealSpot, sneakerHandCoords, drawnWeliAsFirstCard, currentAnimationSpeed, { isDealing: true, cardIndexInHand: sneakerPlayer.hand.length });
+        sneakerPlayer.addCards(drawnWeliAsFirstCard);
+        renderGame(gameState); 
+    }
+    
+    gameState.needsOderDiscard = (sneakerPlayer.hand.length > 4);
+    
+    cardsDrawnThisProcess.forEach(c => {
+        if (c && c.key !== newTrumpCardDeterminer.key && (!drawnWeliAsFirstCard || c.key !== drawnWeliAsFirstCard.key)) {
+            if (!gameState.discardPile.some(dp => dp.key === c.key)) {
+                 gameState.discardPile.push(c);
+            }
+        }
+    });
+    
+    gameState.oderPlayer = null; 
+    gameState.oderType = null;
+
+    gameState.activePlayerOrder = getActivePlayerOrder(gameState); 
     if (gameState.needsOderDiscard) {
-        gameState.phase = GAME_PHASE.EXCHANGE_PREP; gameState.turnPlayerIndex = gameState.sneaker.id;
+        gameState.phase = GAME_PHASE.EXCHANGE_PREP;
+        gameState.turnPlayerIndex = sneakerPlayer.id;
     } else {
         gameState.phase = GAME_PHASE.EXCHANGE;
-        if (gameState.activePlayerOrder.length > 0) gameState.turnPlayerIndex = (gameState.sneaker && gameState.activePlayerOrder.some(p => p.id === gameState.sneaker.id)) ? gameState.sneaker.id : gameState.activePlayerOrder[0].id;
-        else gameState.phase = GAME_PHASE.SCORING;
+        if (gameState.activePlayerOrder.length > 0) {
+            gameState.turnPlayerIndex = (sneakerPlayer && gameState.activePlayerOrder.some(p => p.id === sneakerPlayer.id)) 
+                                        ? sneakerPlayer.id 
+                                        : gameState.activePlayerOrder[0].id;
+        } else {
+            gameState.phase = GAME_PHASE.SCORING; 
+        }
     }
 }
 
@@ -722,7 +825,6 @@ async function processExchangeStep() {
         logMessage(`${currentPlayer.name} Standard Exchange, discarding ${cardsToDiscardData.length}.`);
 
         for(const cardData of cardsToDiscardData) {
-            // cardData already filtered for null
             const playerHandElement = document.querySelector(`#player-area-${currentPlayer.id} .player-hand`);
             if (playerHandElement) void playerHandElement.offsetHeight;
 
@@ -755,33 +857,60 @@ async function drawCardsForPackerl(player, packerlType) {
     logMessage(`--- Starting ${packerlType} for ${player.name} ---`);
     const talonCoords = getElementCoordinates('#talon-display');
     const playerHandCoords = getElementCoordinates(`#player-area-${player.id} .player-hand`);
-    const initialDrawCount = 4;
+    
+    const initialDrawCount = (packerlType === EXCHANGE_TYPE.TRUMPF_PACKERL) ? 5 : 4;
+    logMessage(`${player.name} drawing ${initialDrawCount} cards face-down for ${packerlType}.`);
+
     for (let i = 0; i < initialDrawCount; i++) {
-        if (! await replenishTalonIfNeeded()) { logMessage("Packerl draw fail: No talon."); break; }
+        if (! await replenishTalonIfNeeded()) { logMessage("Packerl draw fail: No talon for initial draw."); break; }
         renderGame(gameState); 
-        if (gameState.talon.length === 0) { logMessage("Packerl draw fail: Talon empty."); break; }
-        await animateCardMovement(talonCoords, playerHandCoords, null, currentAnimationSpeed, { isDealing: true, cardIndexInHand: player.hand.length });
+        if (gameState.talon.length === 0) { logMessage("Packerl draw fail: Talon empty during initial draw."); break; }
+        
+        await animateCardMovement(
+            talonCoords, 
+            playerHandCoords, 
+            null, 
+            currentAnimationSpeed, 
+            { isDealing: true, cardIndexInHand: player.hand.length }
+        );
         const actualCardDrawn = gameState.talon.pop(); 
         if(actualCardDrawn) player.addCards(actualCardDrawn); 
         renderGame(gameState);
     }
 
-    let faceUpDraws = 0; const MAX_PACKERL_DRAWS = 20;
-    while(faceUpDraws < MAX_PACKERL_DRAWS) {
+    let faceUpDraws = 0; 
+    const MAX_FACE_UP_DRAWS_AFTER_INITIAL = 20; 
+
+    do { 
         faceUpDraws++;
         if (! await replenishTalonIfNeeded()) { logMessage("Packerl face-up draw fail: No talon."); break; }
         renderGame(gameState); 
         if (gameState.talon.length === 0) { logMessage("Packerl face-up draw fail: Talon empty."); break; }
+        
         const nextCardData = gameState.talon[gameState.talon.length - 1]; 
-        await animateCardMovement(talonCoords, playerHandCoords, nextCardData, currentAnimationSpeed, { isDealing: true, revealAtEnd: true, cardIndexInHand: player.hand.length });
+        await animateCardMovement(
+            talonCoords, 
+            playerHandCoords, 
+            nextCardData, 
+            currentAnimationSpeed, 
+            { isDealing: true, revealAtEnd: true, cardIndexInHand: player.hand.length }
+        );
         const actualCard = gameState.talon.pop(); 
         if (actualCard) player.addCards(actualCard); 
         renderGame(gameState);
+
         if (!actualCard || (! (actualCard.suit === gameState.trumpSuit || actualCard.rank === WELI_RANK))) { 
-            logMessage(actualCard ? `Card ${actualCard} is NOT Trump - Stopping Packerl.` : "No card drawn for Packerl."); 
+            logMessage(actualCard ? `Card ${actualCard} is NOT Trump - Stopping Packerl face-up draws.` : "No card drawn for Packerl (face-up)."); 
+            break; 
+        } else { 
+            logMessage(`Card ${actualCard} is Trump - Keeping, drawing again for Packerl (face-up).`);
+        }
+        if (faceUpDraws >= MAX_FACE_UP_DRAWS_AFTER_INITIAL) {
+            logMessage("Max face-up draws reached for Packerl.");
             break;
-        } else { logMessage(`Card ${actualCard} is Trump - Keeping, drawing again for Packerl.`);}
-    }
+        }
+    } while (true); 
+
     logMessage(`--- ${packerlType} for ${player.name} Complete. Hand: ${player.hand.length} ---`);
 }
 
@@ -939,7 +1068,7 @@ async function processPlayCardStep() {
     if (!cardToPlay) { logMessage(`CRITICAL: No card chosen or valid for ${currentPlayer.name}!`); gameState.phase = GAME_PHASE.ROUND_END; return; }
 
     const playerHandArea = document.querySelector(`#player-area-${currentPlayer.id} .player-hand`);
-    if (playerHandArea) void playerHandArea.offsetHeight; // Force reflow before finding the element
+    if (playerHandArea) void playerHandArea.offsetHeight; 
 
     let sourceCardElement = playerHandArea ? Array.from(playerHandArea.querySelectorAll('.card-image'))
                               .find(img => img && img.alt && img.alt.startsWith(cardToPlay.toString())) : null;
@@ -1014,7 +1143,7 @@ function moveToNextPlayerInTrick() {
     }
 }
 
-function processTrickEndStep() {
+async function processTrickEndStep() { // Added async
     if(!gameState.currentTrick || gameState.currentTrick.length === 0){ 
         const totalCardsInActiveHands = gameState.getActivePlayers().reduce((sum, p) => sum + (p.hand?.length || 0), 0);
         if (totalCardsInActiveHands === 0 || gameState.tricksPlayedCount >= 4) {
@@ -1035,9 +1164,29 @@ function processTrickEndStep() {
     logMessage(`Trick ${gameState.tricksPlayedCount + 1} won by ${winner.name} with ${winningCard ? winningCard.toString() : 'N/A'}. (Tricks: ${winner.tricksWonThisRound})`);
     winner.lastActionLog = `Won trick ${gameState.tricksPlayedCount + 1}`;
 
+    // --- NEW: Animation for collecting trick ---
+    const trickAreaCenterCoords = getElementCoordinates('#trick-area'); // Get general trick area coords
+    // Adjust if you want a more specific point like center of trick area
+    const sourceAnimationCoords = {
+        top: trickAreaCenterCoords.top + (trickAreaCenterCoords.height / 2) - (108 / 2), // Card height
+        left: trickAreaCenterCoords.left + (trickAreaCenterCoords.width / 2) - (72 / 2)  // Card width
+    };
+    const winnerPlayerAreaSelector = `#player-area-${winner.id}`;
+    
+    await animateCardMovement(
+        sourceAnimationCoords,
+        winnerPlayerAreaSelector,
+        null, // card back
+        currentAnimationSpeed * 0.6, // Make this animation a bit faster
+        { isDiscard: true } // Using isDiscard option to ensure card back and simple vanish
+    );
+    // --- END NEW Animation ---
+
     if(!gameState.discardPile) gameState.discardPile = [];
     gameState.discardPile.push(...gameState.currentTrick.map(p => p.card).filter(c => c)); 
-    gameState.currentTrick = [];
+    gameState.currentTrick = []; // Clear after animation and data move
+    renderGame(gameState); // Re-render to show empty trick area before next logic
+
     gameState.tricksPlayedCount++;
     gameState.players.forEach(p => p.hasBid = false); 
 
@@ -1131,7 +1280,7 @@ export async function nextStep() {
             case GAME_PHASE.EXCHANGE: await processExchangeStep(); break;
             case GAME_PHASE.FINAL_DISCARD: await processFinalDiscardStep(); break;
             case GAME_PHASE.PLAYING_TRICKS: await processPlayCardStep(); break;
-            case GAME_PHASE.TRICK_END: processTrickEndStep(); break; 
+            case GAME_PHASE.TRICK_END: await processTrickEndStep(); break; // Made async
             case GAME_PHASE.ALL_WEITER_PENALTY: processAllWeiterPenalty(); break;
             case GAME_PHASE.SCORING: processScoringStep(); break;
             default: logMessage(`Error: Unknown game phase: ${gameState.phase}`); gameState.phase = GAME_PHASE.ROUND_END;

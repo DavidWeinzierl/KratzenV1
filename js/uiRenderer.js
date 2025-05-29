@@ -4,7 +4,6 @@ import { PLAYER_STATUS, GAME_PHASE, getCardImageFilename, WELI_RANK } from './co
 import { handleUserBid } from './controller.js';
 
 // --- Animation Helper: Get Absolute Coordinates of an Element ---
-// MODIFIED: Add export
 export function getElementCoordinates(elementSelectorOrElement) {
     const gameBoard = document.getElementById('game-board');
     if (!gameBoard) {
@@ -163,11 +162,12 @@ function createCardElement(card) {
 
 
 export function renderGame(gameState) {
-    const logBox = document.getElementById('log-box'); // Moved up for early access if needed
-    const nextStepButton = document.getElementById('next-step'); // Moved up
+    const logBox = document.getElementById('log-box'); 
+    const nextStepButton = document.getElementById('next-step'); 
 
     if (!gameState) {
         console.warn("Render called with null gameState. Displaying initial setup.");
+        // ... (initial setup rendering - no changes needed here for fanning) ...
         if (logBox && logBox.innerHTML.trim() === '') {
              typeof logMessage === 'function'
                 ? logMessage("Game not initialized. Click 'Next Step' to start.")
@@ -194,18 +194,21 @@ export function renderGame(gameState) {
             talonDisplayEl.appendChild(talonCardBackImg);
             const talonCountLabel = document.createElement('div');
             talonCountLabel.classList.add('talon-count-label');
-            talonCountLabel.textContent = `Talon: 33`; // Show 33 initially
+            talonCountLabel.textContent = `Talon: 33`; 
             talonDisplayEl.appendChild(talonCountLabel);
         }
         return;
     }
 
+   // js/uiRenderer.js (within renderGame function)
+
     // --- Render Player Hands & Info ---
     gameState.players.forEach((player, index) => {
         const playerArea = document.getElementById(`player-area-${index}`);
         if (!playerArea) return;
-        playerArea.innerHTML = '';
+        playerArea.innerHTML = ''; // Clear previous content
 
+        // Render player info (no changes here)
         const infoDiv = document.createElement('div');
         infoDiv.classList.add('player-info');
         let dealerIndicator = (player.id === gameState.dealerIndex) ? ' <span class="dealer-indicator">DEALER</span>' : '';
@@ -213,8 +216,8 @@ export function renderGame(gameState) {
         const statusHTML = `<p>Status: ${player.status}</p>`;
         const pointsHTML = `<p>Points: ${player.points.toFixed(1)}</p>`;
         let trickDisplay = player.tricksWonThisRound > 0 ? `<span class="tricks-highlight">${player.tricksWonThisRound}</span>` : player.tricksWonThisRound;
-        const tricksHTML = `<p>Stiche: ${trickDisplay}</p>`;
-        const bidHTML = `<p>Spielzug: ${player.currentBid || ''}</p>`;
+        const tricksHTML = `<p>Tricks: ${trickDisplay}</p>`;
+        const bidHTML = `<p>Bid: ${player.currentBid || '-'}</p>`;
         let actionText = player.lastActionLog || '-';
          if (player.id === gameState.turnPlayerIndex && !gameState.isWaitingForBidInput && !gameState.isAnimating) { 
              switch(gameState.phase) {
@@ -242,21 +245,87 @@ export function renderGame(gameState) {
         infoDiv.innerHTML = playerNameHTML + statusHTML + pointsHTML + tricksHTML + bidHTML + actionHTML;
         playerArea.appendChild(infoDiv);
 
+        // --- MODIFIED: Render Player Hand with Fanning Logic ---
         const handDiv = document.createElement('div');
         handDiv.classList.add('player-hand');
-        (player.hand || []).forEach(card => {
-            if (card) { handDiv.appendChild(createCardElement(card)); }
-            else { console.warn(`Player ${player.name} has an invalid card in hand.`); }
-        });
+        const hand = player.hand || [];
+        const cardCount = hand.length;
+        const fanThreshold = 5; 
+        const cardWidth = 72; 
+        const handContainerWidth = 380; // Width of .player-hand from CSS
+
+        if (cardCount > 0) {
+            if (cardCount <= fanThreshold) {
+                // Normal display: side-by-side
+                hand.forEach(card => {
+                    if (card) {
+                        const cardEl = createCardElement(card);
+                        handDiv.appendChild(cardEl);
+                    } else {
+                        console.warn(`Player ${player.name} has an invalid card in hand.`);
+                    }
+                });
+            } else {
+                // Fanned display (> fanThreshold cards)
+                const minVisiblePartOfCard = cardWidth * 0.25; // Show at least 25% of each overlapped card
+
+                let cardSpacing;
+                if (cardCount > 1) {
+                    // Calculate spacing to spread cards across the container width
+                    // This formula ensures the (cardCount-1) spaces + the last card's width fit the container
+                    cardSpacing = (handContainerWidth - cardWidth) / (cardCount - 1);
+                } else {
+                    cardSpacing = 0; // Should not happen if cardCount > fanThreshold (i.e. >= 6)
+                }
+                
+                // Ensure that the spacing isn't so small that cards overlap too much
+                cardSpacing = Math.max(cardSpacing, minVisiblePartOfCard);
+
+                // If, even with minVisiblePartOfCard, they would overflow,
+                // the CSS `overflow: visible` on `.player-hand` will handle it.
+                // Or, if strict containment is needed, this `cardSpacing` might need further adjustment
+                // to ensure `(cardCount - 1) * cardSpacing + cardWidth <= handContainerWidth`.
+                // For now, we prioritize minVisiblePartOfCard.
+
+                hand.forEach((card, i) => {
+                    if (card) {
+                        const cardEl = createCardElement(card);
+                        cardEl.style.position = 'absolute';
+                        cardEl.style.bottom = '0px'; 
+                        
+                        let leftPosition = i * cardSpacing;
+                        cardEl.style.left = `${leftPosition}px`;
+                        
+                        cardEl.style.zIndex = cardCount - i; 
+                        
+                        // Optional: Slight rotation for fanning effect (can be added later if desired)
+                        // const totalRotationRange = 15; // Max degrees for the fan (e.g., -7.5 to +7.5)
+                        // if (cardCount > 1) {
+                        //     const rotationPerCard = totalRotationRange / (cardCount -1);
+                        //     const startRotation = -totalRotationRange / 2;
+                        //     const currentRotation = startRotation + (i * rotationPerCard);
+                        //     cardEl.style.transform = `rotate(${currentRotation}deg)`;
+                        //     cardEl.style.transformOrigin = 'bottom center'; // Or '50% 100%'
+                        // }
+                        
+                        handDiv.appendChild(cardEl);
+                    } else {
+                        console.warn(`Player ${player.name} has an invalid card in hand (fanning).`);
+                    }
+                });
+            }
+        }
         playerArea.appendChild(handDiv);
     });
 
+    // ... (rest of the renderGame function remains the same)
 
+
+    // --- Render Game Info (Trump, Talon) --- (No changes to this part's core logic)
     const trumpCardDisplayEl = document.getElementById('trump-card-display');
     const talonDisplayEl = document.getElementById('talon-display');
 
     if (trumpCardDisplayEl && talonDisplayEl) {
-        // Render Trump Card (no changes to this part)
         trumpCardDisplayEl.innerHTML = '';
         if (gameState.trumpCard && gameState.trumpSuit) {
             const cardEl = createCardElement(gameState.trumpCard);
@@ -271,8 +340,7 @@ export function renderGame(gameState) {
         suitLabel.textContent = 'Trumpf';
         trumpCardDisplayEl.appendChild(suitLabel);
 
-        // Render Talon Display (NEW LOGIC)
-        talonDisplayEl.innerHTML = ''; // Clear previous card back and label
+        talonDisplayEl.innerHTML = ''; 
         const talonCardBackImg = createCardElement(null);
         talonDisplayEl.appendChild(talonCardBackImg);
         const talonCountLabel = document.createElement('div');
@@ -280,16 +348,12 @@ export function renderGame(gameState) {
 
         let talonCountToShow = 0;
         if (gameState.phase === GAME_PHASE.SETUP ||
-            (gameState.phase === GAME_PHASE.ROUND_END && gameState.deck && !gameState.deck.isEmpty()) || // Before a new round's dealing has started but after previous round ended
+            (gameState.phase === GAME_PHASE.ROUND_END && gameState.deck && !gameState.deck.isEmpty()) || 
             gameState.phase === GAME_PHASE.ANTE) {
-            // Show full deck count before dealing starts for the current round
             talonCountToShow = gameState.deck ? gameState.deck.cards.length : 33;
         } else if (gameState.phase === GAME_PHASE.DEALING) {
-            // During dealing, "talon" count is the number of cards remaining in the deck to be dealt
             talonCountToShow = gameState.deck ? gameState.deck.remaining : 0;
         } else {
-            // After dealing is complete, and for all other phases (exchange, play),
-            // "talon" count is the number of cards in the actual talon pile
             talonCountToShow = gameState.talon ? gameState.talon.length : 0;
         }
         talonCountLabel.textContent = `Talon: ${talonCountToShow}`;
@@ -299,11 +363,12 @@ export function renderGame(gameState) {
         console.warn("Could not find #trump-card-display or #talon-display for game info.");
     }
 
-
+    // --- Render Trick Area --- (No changes)
     const trickArea = document.getElementById('trick-area');
     trickArea.innerHTML = '';
     (gameState.currentTrick || []).forEach((play, index) => { 
         if (play && play.card && play.player) {
+            // ... (trick rendering logic)
             const cardContainer = document.createElement('div');
             cardContainer.classList.add('trick-card-container');
             
@@ -321,9 +386,11 @@ export function renderGame(gameState) {
         }
     });
 
+    // --- Highlight Turn Player --- (No changes)
     document.querySelectorAll('.player-area.turn-highlight').forEach(el => el.classList.remove('turn-highlight'));
     if (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex] &&
         !gameState.isAnimating && 
+        // ... (phase checks for highlight)
         gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP &&
         gameState.phase !== GAME_PHASE.SCORING && gameState.phase !== GAME_PHASE.ALL_WEITER_PENALTY &&
         gameState.phase !== GAME_PHASE.RESOLVE_ODER && gameState.phase !== GAME_PHASE.TRICK_END)
@@ -334,10 +401,11 @@ export function renderGame(gameState) {
         }
     }
 
+    // --- Render Bid Options --- (No changes)
     const bidContainer = document.getElementById('bid-options-container');
-    // const nextStepButton = document.getElementById('next-step'); // Already obtained
     bidContainer.innerHTML = '';
     if (gameState.isWaitingForBidInput && gameState.pendingValidBids.length > 0) {
+        // ... (bid button rendering)
         gameState.pendingValidBids.forEach(bidOption => {
             const button = document.createElement('button');
             button.textContent = bidOption;
