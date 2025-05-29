@@ -103,12 +103,12 @@ export function getCardImageFilename(card) {
     // Handle potential null/undefined card object gracefully
     if (!card || !card.rank) {
         console.warn("getCardImageFilename called with invalid card:", card);
-        return 'card_back.png'; // Provide a fallback image name
+        return 'card_back.jpg'; // Provide a fallback image name
     }
 
     // Special case for Weli
     if (card.rank === WELI_RANK) { // WELI_RANK should be 'W'
-        return 'weli.png';
+        return 'jpg.png';
     }
 
     // Standard cards
@@ -116,10 +116,10 @@ export function getCardImageFilename(card) {
     const rankCode = RANK_TO_FILENAME[card.rank];
 
     if (suitCode && rankCode) {
-        return `${suitCode}${rankCode}.png`;
+        return `${suitCode}${rankCode}.jpg`;
     } else {
         // Log an error if mapping fails for a valid card object
         console.error(`Could not generate filename for card: Rank='${card.rank}', Suit='${card.suit}'`);
-        return 'card_back.png'; // Fallback image
+        return 'card_back.jpg'; // Fallback image
     }
 }
