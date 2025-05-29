@@ -1,0 +1,426 @@
+/* style.css */
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #292828; /* --- NEW: Dark gray background for the page --- */
+    color: #e0e0e0; /* Optional: Lighten default text color for contrast */
+}
+
+#game-board {
+    border: 1px solid black;
+    padding: 10px;
+    margin-bottom: 10px;
+    position: relative; /* For positioning player areas AND FLYING CARDS */
+    width: 1600px; /* Doubled width */
+    height: 700px; /* Increased height slightly */
+    box-sizing: border-box; /* Include padding/border in width/height */
+
+    background-image: url('img/felt.png'); /* Assuming felt.png is in an img folder */
+    background-repeat: repeat;          /* Tile the image */
+    background-color: #006400;          /* Dark green fallback color if image fails */
+    border-radius: 25px;                /* Add rounded corners */
+    overflow: hidden;                   /* Clip content spilling outside rounded corners */
+
+    background-size: 200px 200px;       /* Resize image to 100x100px before tiling */
+}
+
+.player-area {
+    border: 1px dashed rgba(220, 220, 220, 0.6); /* Lighter dashed border */
+    padding: 8px;
+    min-height: 140px; /* Slightly more height */
+
+    width: 38%; /* Adjust width as needed */
+    position: absolute; /* Simple positioning example */
+    display: flex; /* Key change: Use Flexbox for side-by-side */
+    align-items: center; /* Vertically center items */
+    gap: 15px; /* Space between info and hand */
+    box-sizing: border-box;
+    background-color: rgba(245, 245, 245, 0.5); /* Slightly less transparent white background */
+    color: #333; /* Ensure text inside player areas is dark */
+    border-radius: 12px; /* Slightly rounded corners for player areas too */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+}
+
+/* Adjust positioning for wider board */
+.player-area-top { /* Player 3 (index 2) */
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    justify-content: center; /* Center flex items */
+}
+
+.player-area-left { /* Player 2 (index 1) */
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+}
+.player-area-right { /* Player 4 (index 3) */
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+}
+.player-area-bottom { /* Player 1 (index 0) */
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    justify-content: center; /* Center flex items */
+}
+
+.player-info {
+    flex-basis: 160px; /* Fixed width for info section */
+    flex-shrink: 0; /* Prevent info from shrinking */
+    text-align: left;
+    font-size: 0.9em;
+    padding-right: 10px;
+}
+.player-info p {
+    margin: 3px 0;
+}
+
+.player-hand {
+    display: flex;
+    gap: 5px; /* Space between cards */
+    flex-grow: 1; /* Hand takes remaining space */
+    justify-content: flex-start; /* Align cards to the left */
+    flex-wrap: wrap; /* Allow cards to wrap if too many */
+    padding-left: 5px; /* Add some padding from the edge */
+}
+
+
+#center-area {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: auto; /* Let content define width */
+    gap: 10px; /* Add gap between game info and trick area */
+}
+
+
+#game-info {
+    text-align: center;
+    border: 1px solid #ccc;
+    background-color: rgba(255, 255, 255, 0.382);
+    color: #333;
+    padding: 8px 12px;
+    min-width: 300px;
+    min-height: 130px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game-info-content {
+    display: flex;
+    justify-content: center; 
+    align-items: flex-start;
+    width: 100%; 
+    gap: 20px;
+}
+
+
+#trump-card-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-height: 115px;
+    justify-content: flex-start;
+    color: #333;
+    font-size: 0.9em;
+    width: 100px; 
+}
+
+#trump-card-display .card-image {
+     margin-bottom: 0;
+}
+
+.trump-suit-label {
+    font-weight: bold;
+    margin-top: 2px;
+    color: #333;
+    width: 100%; 
+    text-align: center; 
+}
+
+
+#talon-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-height: 115px;
+    justify-content: flex-start;
+    color: #333;
+    font-size: 0.9em;
+    width: 100px; 
+}
+
+.talon-count-label {
+    font-weight: bold;
+    margin-top: 2px;
+    color: #333;
+    width: 100%; 
+    text-align: center; 
+}
+
+
+#trick-area {
+    border: 1px solid rgba(0, 0, 255, 0.5);
+    min-width: 300px;
+    min-height: 130px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    background-color: rgba(173, 216, 230, 0.7);
+    padding: 8px;
+    border-radius: 12px;
+}
+
+.trick-card-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.trick-card-player {
+    font-size: 0.75em;
+    color: #333;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 0 3px;
+    border-radius: 3px;
+}
+
+.card-image {
+    width: 72px; 
+    height: 108px;
+    border: 1px solid #666;
+    border-radius: 4px;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    background-color: #eee;
+    display: block;
+}
+
+.card-image-placeholder {
+    width: 72px;
+    height: 108px;
+    display: block;
+}
+
+/* NEW: Styles for the flying card animation */
+.flying-card {
+    position: absolute; /* Relative to #game-board */
+    z-index: 1000; /* Ensure it's on top */
+    opacity: 1;
+    /* transition-duration will be set by JS */
+    transition-property: transform, opacity; /* Animate transform and opacity */
+    transition-timing-function: ease-in-out;
+    /* transform-origin for any flip/spin effects */
+    transform-origin: center center;
+}
+
+
+#controls {
+    margin: 15px 0;
+    display: flex;
+    gap: 10px; /* Adjusted gap for new slider */
+    align-items: center;
+    color: #e0e0e0;
+}
+#controls label {
+     color: #e0e0e0;
+}
+
+
+#log-container {
+    width: 90%; 
+    max-width: 1100px;
+    border: 1px solid #999;
+    margin-top: 15px;
+    background-color: #313131;
+     border-radius: 8px;
+     overflow: hidden;
+}
+#log-box {
+    height: 180px;
+    overflow-y: scroll;
+    padding: 8px;
+    background-color: #292828;
+    color: #b3b3b3;
+    font-size: 0.9em;
+}
+#log-box p {
+    margin: 2px 0;
+    padding: 1px 0;
+    border-bottom: 1px dotted #ddd;
+}
+#log-box p:last-child {
+    border-bottom: none;
+}
+
+.turn-highlight {
+    box-shadow: 0 0 10px 3px gold !important;
+    border-color: gold !important;
+}
+
+.dealer-indicator {
+    color: #b22222;
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-left: 5px;
+}
+
+.tricks-highlight {
+    color: #d9534f;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.player-action-log {
+    color: #d10049;
+    font-style: italic;
+    font-size: 1 em;
+    margin-top: 5px !important;
+}
+
+#controls button#next-step {
+    background-color: #5cb85c;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+
+#controls button#next-step:hover {
+    background-color: #449d44;
+}
+
+#controls button#next-step:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+
+#bid-options-container {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-height: 40px;
+}
+
+.bid-button {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    border: 1px solid #999;
+    background-color: #e0e0e0;
+    color: #333;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.bid-button:hover {
+    background-color: #d0d0d0;
+    border-color: #777;
+}
+
+#simulation-container {
+    border: 1px solid #777;
+    padding: 15px;
+    margin-top: 20px;
+    width: 90%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+#simulation-container h2,
+#simulation-container h3,
+#simulation-container label,
+#simulation-container p,
+#simulation-container button {
+    color: #e0e0e0;
+}
+
+.simulation-section {
+    border: 1px dashed #aaa;
+    padding: 10px;
+     border-radius: 6px;
+}
+.slider-group {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.slider-group label {
+    min-width: 100px;
+    text-align: right;
+    color: #e0e0e0;
+}
+.slider-group input[type="range"] {
+    flex-grow: 1;
+}
+.slider-group .value-display {
+    min-width: 30px;
+    font-family: monospace;
+    text-align: right;
+     color: #e0e0e0;
+}
+#simulation-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+#simulation-controls label {
+     color: #e0e0e0;
+}
+#simulation-controls input[type="number"] {
+    background-color: #555;
+    color: #e0e0e0;
+    border: 1px solid #888;
+    border-radius: 4px;
+    padding: 3px 5px;
+}
+#simulation-controls button {
+     padding: 6px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    border: 1px solid #999;
+    background-color: #6c757d;
+    color: white;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+#simulation-controls button:hover {
+    background-color: #5a6268;
+    border-color: #777;
+}
+#simulation-results-container {
+    color: #e0e0e0;
+}
+#simulation-results-container pre {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 4px;
+    color: #f0f0f0;
+    border: 1px solid #666;
+}
