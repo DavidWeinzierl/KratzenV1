@@ -111,7 +111,7 @@ async function replenishTalonIfNeeded() {
 
 async function _processChosenBid(player, chosenBid, stage, gameState) {
     player.currentBid = chosenBid;
-    player.lastActionLog = `Bid: ${chosenBid}`;
+    player.lastActionLog = `${chosenBid}`;
     player.hasBid = true;
 
     if (stage === GAME_PHASE.BIDDING_STAGE_1) {

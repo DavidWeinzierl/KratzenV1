@@ -75,7 +75,7 @@ export const BID_OPTIONS = {
     SNEAK: 'I schlogs!',
     ODER_MIT: 'Oder mit',
     ODER_OHNE: 'Oder ohne',
-    PLAY: 'Play',
+    PLAY: 'I geh mit',
     FOLD: 'Fold', // CHANGED FROM PASS
 };
 

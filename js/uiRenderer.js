@@ -217,7 +217,7 @@ export function renderGame(gameState) {
         const pointsHTML = `<p>Punkte: ${player.points.toFixed(1)}</p>`;
         let trickDisplay = player.tricksWonThisRound > 0 ? `<span class="tricks-highlight">${player.tricksWonThisRound}</span>` : player.tricksWonThisRound;
         const tricksHTML = `<p>Stiche: ${trickDisplay}</p>`;
-        const bidHTML = `<p>Bid: ${player.currentBid || '-'}</p>`;
+        const bidHTML = `<p>Spielzug: ${player.currentBid || ''}</p>`;
         let actionText = player.lastActionLog || '-';
          if (player.id === gameState.turnPlayerIndex && !gameState.isWaitingForBidInput && !gameState.isAnimating) { 
              switch(gameState.phase) {

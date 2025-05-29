@@ -305,9 +305,10 @@ body {
 }
 
 .player-action-log {
-    color: #0056b3;
+    color: #d20058;
     font-style: italic;
-    font-size: 0.85em;
+    font-weight: bold;
+    font-size: 1 em;
     margin-top: 5px !important;
 }
 
