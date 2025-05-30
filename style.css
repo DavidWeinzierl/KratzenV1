@@ -1,4 +1,4 @@
-/* style.css */
+
 body {
     font-family: sans-serif;
     display: flex;
@@ -79,35 +79,20 @@ body {
 }
 
 .player-hand {
-    display: flex; /* Default for up to 5 cards */
-    /* gap: 5px; /* Applied dynamically or via card margin */
+    display: flex; 
     flex-grow: 1; 
     justify-content: flex-start; 
-    /* flex-wrap: wrap; /* REMOVED - We will handle overflow by fanning */
     padding-left: 5px; 
-    position: relative; /* Crucial for absolute positioning of fanned cards */
-    /* min-height: 110px; /* Ensure enough height for cards, adjust as needed */
-    /* max-width: calc((72px * 5) + (5px * 4) + 10px); /* Approx width for 5 cards side-by-side + padding */
-    /* Or a more fixed width, e.g., 400px, and cards will distribute within it */
-    width: 380px; /* Fixed width for hand area to contain fanned cards */
-    height: 120px; /* Enough height for normal and slightly fanned cards */
-    overflow: visible; /* Allow fanned cards to slightly go out if needed, or clip if preferred */
+    position: relative; 
+    width: 380px; 
+    height: 120px; 
+    overflow: visible; 
 }
 
-/* Default styling for cards when NOT fanned (<= 5 cards) */
 .player-hand .card-image {
-    position: relative; /* Changed from absolute for normal flow */
-    margin-right: 5px; /* Simulates gap */
-    /* z-index will be default or managed by order */
+    position: relative; 
+    margin-right: 5px; 
 }
-
-/* Styling for cards when fanned (> 5 cards) will be applied inline via JS */
-/* .player-hand.fanned .card-image {
-    position: absolute;
-    bottom: 0; /* Or align as needed */
-/* transform-origin: bottom center; /* Example for fanning */
-/* } */
-
 
 #center-area {
     position: absolute;
@@ -227,9 +212,7 @@ body {
     border-radius: 4px;
     box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
     background-color: #eee;
-    display: block; /* Ensures it takes up space and respects margins */
-    /* transition for smooth fan changes if needed, but direct style set might be fine */
-    /* transition: transform 0.3s ease, left 0.3s ease; */ 
+    display: block; 
 }
 
 .card-image-placeholder {
@@ -443,4 +426,107 @@ body {
     border-radius: 4px;
     color: #f0f0f0;
     border: 1px solid #666;
+    white-space: pre-wrap; 
+    word-break: break-all; 
+}
+
+/* Bar Chart Styling */
+#simulation-chart-container {
+    color: #e0e0e0;
+}
+#bar-chart-area {
+    display: flex;
+    justify-content: space-around; 
+    align-items: flex-end; 
+    width: 100%;
+    height: 250px; 
+    padding: 20px 10px 10px 10px; 
+    box-sizing: border-box;
+    border: 1px solid #555;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    position: relative; 
+}
+
+.bar-container {
+    display: flex;
+    flex-direction: column; 
+    align-items: center;
+    text-align: center;
+    width: 18%; 
+    color: #e0e0e0;
+}
+
+.bar-value {
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    min-height: 1.2em; 
+}
+
+.bar {
+    width: 70%; 
+    background-color: #4a90e2; 
+    border: 1px solid #357abd;
+    border-bottom: none; 
+    box-sizing: border-box;
+    transition: height 0.5s ease-out; 
+    min-height: 1px; 
+}
+
+.bar-p0 { background-color: #5cb85c; border-color: #4cae4c; } 
+.bar-p1 { background-color: #f0ad4e; border-color: #eea236; } 
+.bar-p2 { background-color: #d9534f; border-color: #d43f3a; } 
+.bar-p3 { background-color: #5bc0de; border-color: #46b8da; } 
+
+
+.bar-label {
+    margin-top: 8px;
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+#bar-chart-area::before {
+    content: '';
+    position: absolute;
+    bottom: 30px; 
+    left: 0;
+    right: 0;
+    height: 1px;
+    z-index: -1; 
+}
+
+/* --- NEW: Progress Bar Styling --- */
+#simulation-progress-container {
+    width: 100%;
+    background-color: #555; /* Darker background for the track */
+    border-radius: 4px;
+    padding: 2px; /* Small padding to see the border of the fill */
+    box-sizing: border-box;
+    margin-top: 10px;
+    position: relative; /* For text overlay */
+    height: 24px; /* Container height */
+}
+
+#simulation-progress-bar-fill {
+    width: 0%; /* Initial width */
+    height: 20px; /* Fill height, slightly less than container */
+    background-color: #4CAF50; /* Green progress color */
+    border-radius: 3px;
+    transition: width 0.1s linear; /* Smooth width transition */
+    text-align: center; /* For text inside if needed, but separate span is better */
+    line-height: 20px; /* Vertically center text if it were inside */
+    color: white;
+}
+
+#simulation-progress-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.8em;
+    color: #fff;
+    text-shadow: 1px 1px 1px #000; /* Make text readable over bar */
+    pointer-events: none; /* Allow clicks through the text */
 }

@@ -245,67 +245,65 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
 
 
 // --- Play Lead Decision Function ---
-// ... (decidePlayLead remains unchanged) ...
-export function decidePlayLead(player, validPlays, gameState, config) {
+// js/aiStrategies.js
+
+// ... (imports and other helper functions) ...
+
+export function decidePlayLead(player, validPlays, gameState, config) { // config now contains isSimulationRunning
     const trumpSuit = gameState.trumpSuit;
+    const isSimulating = config.isSimulationRunning; // Use it
+
     if (player.hasSauWeli) {
-        if (gameState.tricksPlayedCount === 0) {
-            const trumpAceCard = player.hand.find(c => c && c.rank === 'A' && c.suit === trumpSuit);
-            if (trumpAceCard && validPlays.some(vp => vp && vp.key === trumpAceCard.key)) {
-                logMessage(`AI (${player.name}): Strategy PlayLead - Has Sau+Weli flag, 1st trick. Playing Trump Ace.`);
-                return trumpAceCard;
+        // Check if the actual cards are still in hand
+        const currentTrumpAce = player.hand.find(c => c && c.rank === 'A' && c.suit === trumpSuit);
+        const currentWeli = player.hand.find(c => c && c.rank === WELI_RANK);
+
+        if (!currentTrumpAce || !currentWeli) {
+            if (!isSimulating) logMessage(`AI (${player.name}): SauWeli hand broken. Clearing plan.`);
+            player.hasSauWeli = false; 
+            if (player.aiPlan) player.aiPlan.sauWeliLeadState = null;
+        } else {
+            if (player.aiPlan && player.aiPlan.sauWeliLeadState === 'READY_TO_LEAD_ACE') {
+                if (currentTrumpAce && validPlays.some(vp => vp && vp.key === currentTrumpAce.key)) {
+                    if (!isSimulating) logMessage(`AI (${player.name}): Strategy PlayLead - SauWeli Plan: Leading Trump Ace.`);
+                    return currentTrumpAce;
+                } else {
+                    if (!isSimulating) logMessage(`AI (${player.name}): Strategy PlayLead - SauWeli Plan: Wanted Ace, but not found/valid. Falling back.`);
+                }
+            } else if (player.aiPlan && player.aiPlan.sauWeliLeadState === 'READY_TO_LEAD_WELI') {
+                if (currentWeli && validPlays.some(vp => vp && vp.key === currentWeli.key)) {
+                    if (!isSimulating) logMessage(`AI (${player.name}): Strategy PlayLead - SauWeli Plan: Leading Weli.`);
+                    return currentWeli;
+                } else {
+                    if (!isSimulating) logMessage(`AI (${player.name}): Strategy PlayLead - SauWeli Plan: Wanted Weli, but not found/valid. Falling back.`);
+                }
             } else {
-                logMessage(`AI (${player.name}): Strategy PlayLead - Has Sau+Weli flag, wanted Ace on trick 0, but not found/valid. Falling back.`);
-            }
-        } else if (gameState.tricksPlayedCount === 1) {
-            const weliCard = player.hand.find(c => c && c.rank === WELI_RANK);
-            if (weliCard && validPlays.some(vp => vp && vp.key === weliCard.key)) {
-                logMessage(`AI (${player.name}): Strategy PlayLead - Has Sau+Weli flag, 2nd trick. Playing Weli.`);
-                return weliCard;
-            } else {
-                logMessage(`AI (${player.name}): Strategy PlayLead - Has Sau+Weli flag, wanted Weli on trick 1, but not found/valid. Falling back.`);
+                if (!player.aiPlan) player.aiPlan = {};
+                if (!player.aiPlan.sauWeliLeadState && currentTrumpAce && validPlays.some(vp => vp.key === currentTrumpAce.key)) {
+                    if (!isSimulating) logMessage(`AI (${player.name}): Strategy PlayLead - SauWeli (first lead with this hand). Setting state and leading Trump Ace.`);
+                    player.aiPlan.sauWeliLeadState = 'READY_TO_LEAD_ACE'; 
+                    return currentTrumpAce;
+                }
             }
         }
-         logMessage(`AI (${player.name}): Strategy PlayLead - Has Sau+Weli flag, but not trick 0/1 or specific card invalid. Using new fallback lead logic.`);
     }
-    logMessage(`AI (${player.name}): Strategy PlayLead - Applying fallback lead logic.`);
 
-    if (!validPlays || validPlays.length === 0) {
-        logMessage(`AI CRITICAL (${player.name}): Strategy PlayLead - No valid plays array or it's empty in fallback. Returning null.`);
-        return null;
+    if (!isSimulating) logMessage(`AI (${player.name}): Strategy PlayLead - Applying fallback lead logic.`);
+    // ... (rest of existing fallback logic, ensuring all logMessage calls are wrapped in `if (!isSimulating)`) ...
+    if (!validPlays || validPlays.length === 0) { 
+        // if (!isSimulating) logMessage(`AI CRITICAL (${player.name}): Strategy PlayLead - No valid plays array or it's empty in fallback. Returning null.`); // Example of wrapping
+        return null; 
     }
-    const nonTrumpNonWeliPlays = validPlays.filter(card => {
-        if (!card) return false;
-        const isTrump = (trumpSuit && card.suit === trumpSuit);
-        const isWeli = (card.rank === WELI_RANK);
-        return !isTrump && !isWeli;
-    });
-
-    if (nonTrumpNonWeliPlays.length > 0) {
-        const sortedNonTrumpNonWeli = _sortCardsByValue(nonTrumpNonWeliPlays, null, false); 
-        if (sortedNonTrumpNonWeli.length > 0 && sortedNonTrumpNonWeli[0]) {
-            logMessage(`AI (${player.name}): Strategy PlayLead Fallback - Playing highest non-trump, non-Weli: ${sortedNonTrumpNonWeli[0].toString()}.`);
-            return sortedNonTrumpNonWeli[0];
-        }
-    }
-    logMessage(`AI (${player.name}): Strategy PlayLead Fallback - Only trumps/Weli seem to be valid plays.`);
-
-    if (!player.hasSauWeli) {
-        const sortedTrumpsAsc = _sortCardsByValue(validPlays, trumpSuit, true); 
-        if (sortedTrumpsAsc.length > 0 && sortedTrumpsAsc[0]) {
-            logMessage(`AI (${player.name}): Strategy PlayLead Fallback - Only trumps left, NO SauWeli flag. Playing LOWEST trump: ${sortedTrumpsAsc[0].toString()}.`);
-            return sortedTrumpsAsc[0];
-        }
-    } else {
-        const sortedTrumpsAsc = _sortCardsByValue(validPlays, trumpSuit, true);
-        if (sortedTrumpsAsc.length > 0 && sortedTrumpsAsc[0]) {
-            logMessage(`AI (${player.name}): Strategy PlayLead Fallback - Only trumps left, HAS SauWeli flag (but specific play not applicable). Playing LOWEST trump: ${sortedTrumpsAsc[0].toString()}.`);
-            return sortedTrumpsAsc[0];
-        }
-    }
-    logMessage(`AI WARNING (${player.name}): Strategy PlayLead Fallback - Reached absolute last resort. Playing first valid play: ${validPlays[0]?.toString()}`);
-    return validPlays[0] || null;
+    const nonTrumpNonWeliPlaysFiltered = validPlays.filter(card => { if (!card) return false; const isTrump = (trumpSuit && card.suit === trumpSuit); const isWeli = (card.rank === WELI_RANK); return !isTrump && !isWeli; });
+    if (nonTrumpNonWeliPlaysFiltered.length > 0) { const sortedNonTrumpNonWeli = _sortCardsByValue(nonTrumpNonWeliPlaysFiltered, null, false); if (sortedNonTrumpNonWeli.length > 0 && sortedNonTrumpNonWeli[0]) { if (!isSimulating) logMessage(`AI (${player.name}): Fallback - Playing highest non-trump, non-Weli: ${sortedNonTrumpNonWeli[0].toString()}.`); return sortedNonTrumpNonWeli[0]; } }
+    const sortedTrumpsAsc = _sortCardsByValue(validPlays.filter(c => c), trumpSuit, true); // Filter nulls before sort
+    if (sortedTrumpsAsc.length > 0 && sortedTrumpsAsc[0]) { if (!isSimulating) logMessage(`AI (${player.name}): Fallback - Only trumps/Weli. Playing LOWEST: ${sortedTrumpsAsc[0].toString()}.`); return sortedTrumpsAsc[0]; }
+    if (!isSimulating) logMessage(`AI WARNING (${player.name}): Fallback - Absolute last resort. Playing first valid play: ${validPlays.find(c => c)?.toString()}`); // Find first non-null
+    return validPlays.find(c => c) || null; // Return first non-null valid play
 }
+
+
+
 
 // --- Play Follow Decision Function ---
 // ... (decidePlayFollow remains unchanged) ...

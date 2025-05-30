@@ -1,7 +1,7 @@
-// js/uiRenderer.js
+
 
 import { PLAYER_STATUS, GAME_PHASE, getCardImageFilename, WELI_RANK } from './constants.js';
-import { handleUserBid } from './controller.js';
+import { handleUserBid, isSimulationRunning } from './controller.js'; // IMPORT isSimulationRunning
 
 // --- Animation Helper: Get Absolute Coordinates of an Element ---
 export function getElementCoordinates(elementSelectorOrElement) {
@@ -52,6 +52,11 @@ export function animateCardMovement(
     animationSpeed, 
     options = {} 
 ) {
+    // NEW: Skip animation if simulation is running
+    if (isSimulationRunning) {
+        return Promise.resolve();
+    }
+
     return new Promise(resolve => {
         const gameBoard = document.getElementById('game-board');
         if (!gameBoard) {
@@ -162,12 +167,16 @@ function createCardElement(card) {
 
 
 export function renderGame(gameState) {
+    // NEW: Skip rendering if simulation is running
+    if (isSimulationRunning) {
+        return;
+    }
+
     const logBox = document.getElementById('log-box'); 
     const nextStepButton = document.getElementById('next-step'); 
 
     if (!gameState) {
         console.warn("Render called with null gameState. Displaying initial setup.");
-        // ... (initial setup rendering - no changes needed here for fanning) ...
         if (logBox && logBox.innerHTML.trim() === '') {
              typeof logMessage === 'function'
                 ? logMessage("Game not initialized. Click 'Next Step' to start.")
@@ -200,15 +209,12 @@ export function renderGame(gameState) {
         return;
     }
 
-   // js/uiRenderer.js (within renderGame function)
-
     // --- Render Player Hands & Info ---
     gameState.players.forEach((player, index) => {
         const playerArea = document.getElementById(`player-area-${index}`);
         if (!playerArea) return;
-        playerArea.innerHTML = ''; // Clear previous content
+        playerArea.innerHTML = ''; 
 
-        // Render player info (no changes here)
         const infoDiv = document.createElement('div');
         infoDiv.classList.add('player-info');
         let dealerIndicator = (player.id === gameState.dealerIndex) ? ' <span class="dealer-indicator">DEALER</span>' : '';
@@ -245,18 +251,16 @@ export function renderGame(gameState) {
         infoDiv.innerHTML = playerNameHTML + statusHTML + pointsHTML + tricksHTML + bidHTML + actionHTML;
         playerArea.appendChild(infoDiv);
 
-        // --- MODIFIED: Render Player Hand with Fanning Logic ---
         const handDiv = document.createElement('div');
         handDiv.classList.add('player-hand');
         const hand = player.hand || [];
         const cardCount = hand.length;
         const fanThreshold = 5; 
         const cardWidth = 72; 
-        const handContainerWidth = 380; // Width of .player-hand from CSS
+        const handContainerWidth = 380; 
 
         if (cardCount > 0) {
             if (cardCount <= fanThreshold) {
-                // Normal display: side-by-side
                 hand.forEach(card => {
                     if (card) {
                         const cardEl = createCardElement(card);
@@ -266,48 +270,19 @@ export function renderGame(gameState) {
                     }
                 });
             } else {
-                // Fanned display (> fanThreshold cards)
-                const minVisiblePartOfCard = cardWidth * 0.25; // Show at least 25% of each overlapped card
-
+                const minVisiblePartOfCard = cardWidth * 0.25; 
                 let cardSpacing;
-                if (cardCount > 1) {
-                    // Calculate spacing to spread cards across the container width
-                    // This formula ensures the (cardCount-1) spaces + the last card's width fit the container
-                    cardSpacing = (handContainerWidth - cardWidth) / (cardCount - 1);
-                } else {
-                    cardSpacing = 0; // Should not happen if cardCount > fanThreshold (i.e. >= 6)
-                }
-                
-                // Ensure that the spacing isn't so small that cards overlap too much
+                if (cardCount > 1) cardSpacing = (handContainerWidth - cardWidth) / (cardCount - 1);
+                else cardSpacing = 0; 
                 cardSpacing = Math.max(cardSpacing, minVisiblePartOfCard);
-
-                // If, even with minVisiblePartOfCard, they would overflow,
-                // the CSS `overflow: visible` on `.player-hand` will handle it.
-                // Or, if strict containment is needed, this `cardSpacing` might need further adjustment
-                // to ensure `(cardCount - 1) * cardSpacing + cardWidth <= handContainerWidth`.
-                // For now, we prioritize minVisiblePartOfCard.
-
                 hand.forEach((card, i) => {
                     if (card) {
                         const cardEl = createCardElement(card);
                         cardEl.style.position = 'absolute';
                         cardEl.style.bottom = '0px'; 
-                        
                         let leftPosition = i * cardSpacing;
                         cardEl.style.left = `${leftPosition}px`;
-                        
                         cardEl.style.zIndex = cardCount - i; 
-                        
-                        // Optional: Slight rotation for fanning effect (can be added later if desired)
-                        // const totalRotationRange = 15; // Max degrees for the fan (e.g., -7.5 to +7.5)
-                        // if (cardCount > 1) {
-                        //     const rotationPerCard = totalRotationRange / (cardCount -1);
-                        //     const startRotation = -totalRotationRange / 2;
-                        //     const currentRotation = startRotation + (i * rotationPerCard);
-                        //     cardEl.style.transform = `rotate(${currentRotation}deg)`;
-                        //     cardEl.style.transformOrigin = 'bottom center'; // Or '50% 100%'
-                        // }
-                        
                         handDiv.appendChild(cardEl);
                     } else {
                         console.warn(`Player ${player.name} has an invalid card in hand (fanning).`);
@@ -318,10 +293,6 @@ export function renderGame(gameState) {
         playerArea.appendChild(handDiv);
     });
 
-    // ... (rest of the renderGame function remains the same)
-
-
-    // --- Render Game Info (Trump, Talon) --- (No changes to this part's core logic)
     const trumpCardDisplayEl = document.getElementById('trump-card-display');
     const talonDisplayEl = document.getElementById('talon-display');
 
@@ -363,49 +334,38 @@ export function renderGame(gameState) {
         console.warn("Could not find #trump-card-display or #talon-display for game info.");
     }
 
-    // --- Render Trick Area --- (No changes)
     const trickArea = document.getElementById('trick-area');
     trickArea.innerHTML = '';
     (gameState.currentTrick || []).forEach((play, index) => { 
         if (play && play.card && play.player) {
-            // ... (trick rendering logic)
             const cardContainer = document.createElement('div');
             cardContainer.classList.add('trick-card-container');
-            
             const cardEl = createCardElement(play.card);
             cardContainer.appendChild(cardEl);
-
             const playerIndicator = document.createElement('span');
             playerIndicator.classList.add('trick-card-player');
             playerIndicator.textContent = `P${play.player.id}`;
             cardContainer.appendChild(playerIndicator);
-            
             trickArea.appendChild(cardContainer);
         } else {
              console.warn("Invalid play object, card, or player found in currentTrick.");
         }
     });
 
-    // --- Highlight Turn Player --- (No changes)
     document.querySelectorAll('.player-area.turn-highlight').forEach(el => el.classList.remove('turn-highlight'));
     if (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex] &&
         !gameState.isAnimating && 
-        // ... (phase checks for highlight)
         gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP &&
         gameState.phase !== GAME_PHASE.SCORING && gameState.phase !== GAME_PHASE.ALL_WEITER_PENALTY &&
         gameState.phase !== GAME_PHASE.RESOLVE_ODER && gameState.phase !== GAME_PHASE.TRICK_END)
     {
         const turnPlayerArea = document.getElementById(`player-area-${gameState.turnPlayerIndex}`);
-        if (turnPlayerArea) {
-            turnPlayerArea.classList.add('turn-highlight');
-        }
+        if (turnPlayerArea) turnPlayerArea.classList.add('turn-highlight');
     }
 
-    // --- Render Bid Options --- (No changes)
     const bidContainer = document.getElementById('bid-options-container');
     bidContainer.innerHTML = '';
     if (gameState.isWaitingForBidInput && gameState.pendingValidBids.length > 0) {
-        // ... (bid button rendering)
         gameState.pendingValidBids.forEach(bidOption => {
             const button = document.createElement('button');
             button.textContent = bidOption;
@@ -415,8 +375,6 @@ export function renderGame(gameState) {
         });
         if (nextStepButton) nextStepButton.disabled = true;
     } else {
-        if (nextStepButton) {
-             nextStepButton.disabled = gameState.isWaitingForBidInput || gameState.isAnimating;
-        }
+        if (nextStepButton) nextStepButton.disabled = gameState.isWaitingForBidInput || gameState.isAnimating;
     }
 }
