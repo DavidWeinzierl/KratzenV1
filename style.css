@@ -1,75 +1,74 @@
-
 body {
     font-family: sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-color: #292828; 
-    color: #e0e0e0; 
+    background-color: #292828;
+    color: #e0e0e0;
 }
 
 #game-board {
     border: 1px solid black;
     padding: 10px;
     margin-bottom: 10px;
-    position: relative; 
-    width: 1600px; 
-    height: 700px; 
-    box-sizing: border-box; 
+    position: relative;
+    width: 1600px;
+    height: 700px;
+    box-sizing: border-box;
 
-    background-image: url('img/felt.png'); 
-    background-repeat: repeat;          
-    background-color: #006400;          
-    border-radius: 25px;                
-    overflow: hidden;                   
+    background-image: url('img/felt.png');
+    background-repeat: repeat;
+    background-color: #006400;
+    border-radius: 25px;
+    overflow: hidden;
 
-    background-size: 200px 200px;       
+    background-size: 200px 200px;
 }
 
 .player-area {
-    border: 1px dashed rgba(220, 220, 220, 0.6); 
+    border: 1px dashed rgba(220, 220, 220, 0.6);
     padding: 8px;
-    min-height: 140px; 
+    min-height: 140px;
 
-    width: 38%; 
-    position: absolute; 
-    display: flex; 
-    align-items: center; 
-    gap: 15px; 
+    width: 38%;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 15px;
     box-sizing: border-box;
-    background-color: rgba(245, 245, 245, 0.5); 
-    color: #333; 
-    border-radius: 12px; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+    background-color: rgba(245, 245, 245, 0.5);
+    color: #333;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.player-area-top { 
+.player-area-top {
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    justify-content: center; 
+    justify-content: center;
 }
 
-.player-area-left { 
+.player-area-left {
     top: 50%;
     left: 10px;
     transform: translateY(-50%);
 }
-.player-area-right { 
+.player-area-right {
     top: 50%;
     right: 10px;
     transform: translateY(-50%);
 }
-.player-area-bottom { 
+.player-area-bottom {
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    justify-content: center; 
+    justify-content: center;
 }
 
 .player-info {
-    flex-basis: 160px; 
-    flex-shrink: 0; 
+    flex-basis: 160px;
+    flex-shrink: 0;
     text-align: left;
     font-size: 0.9em;
     padding-right: 10px;
@@ -79,20 +78,32 @@ body {
 }
 
 .player-hand {
-    display: flex; 
-    flex-grow: 1; 
-    justify-content: flex-start; 
-    padding-left: 5px; 
-    position: relative; 
-    width: 380px; 
-    height: 120px; 
-    overflow: visible; 
+    display: flex;
+    flex-grow: 1;
+    justify-content: flex-start;
+    padding-left: 5px;
+    position: relative;
+    width: 380px;
+    height: 120px;
+    overflow: visible;
 }
 
 .player-hand .card-image {
-    position: relative; 
-    margin-right: 5px; 
+    position: relative;
+    margin-right: 5px;
+    cursor: default; /* Default cursor for cards */
 }
+
+/* Style for cards when they are selectable/playable in manual mode */
+.player-hand .card-image.manual-playable {
+    cursor: pointer;
+    filter: brightness(1.1); /* Slight brightness to indicate interactivity */
+}
+.player-hand .card-image.manual-playable:hover {
+    filter: brightness(1.25);
+    box-shadow: 0 0 8px 2px yellow;
+}
+
 
 #center-area {
     position: absolute;
@@ -102,8 +113,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: auto; 
-    gap: 10px; 
+    width: auto;
+    gap: 10px;
 }
 
 
@@ -124,9 +135,9 @@ body {
 
 .game-info-content {
     display: flex;
-    justify-content: center; 
+    justify-content: center;
     align-items: flex-start;
-    width: 100%; 
+    width: 100%;
     gap: 20px;
 }
 
@@ -140,7 +151,7 @@ body {
     justify-content: flex-start;
     color: #333;
     font-size: 0.9em;
-    width: 100px; 
+    width: 100px;
 }
 
 #trump-card-display .card-image {
@@ -151,8 +162,8 @@ body {
     font-weight: bold;
     margin-top: 2px;
     color: #333;
-    width: 100%; 
-    text-align: center; 
+    width: 100%;
+    text-align: center;
 }
 
 
@@ -165,47 +176,15 @@ body {
     justify-content: flex-start;
     color: #333;
     font-size: 0.9em;
-    width: 100px; 
+    width: 100px;
 }
 
 .talon-count-label {
     font-weight: bold;
     margin-top: 2px;
     color: #333;
-    width: 100%; 
-    text-align: center; 
-}
-
-
-
-
-#controls button { /* General styling for buttons in controls if not already present */
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s ease;
-    color: white; /* Assuming light text on dark buttons */
-}
-
-#controls button#toggle-opponent-cards-visibility {
-    background-color: #6c757d; /* A neutral or different color */
-}
-#controls button#toggle-opponent-cards-visibility:hover {
-    background-color: #5a6268;
-}
-
-
-#controls button#next-step {
-    background-color: #5cb85c;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s ease;
+    width: 100%;
+    text-align: center;
 }
 
 
@@ -238,14 +217,21 @@ body {
 }
 
 .card-image {
-    width: 72px; 
+    width: 72px;
     height: 108px;
     border: 1px solid #666;
     border-radius: 4px;
     box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
     background-color: #eee;
-    display: block; 
+    display: block;
 }
+
+/* NEW: Style for selected cards */
+.card-image.card-selected {
+    border: 3px solid gold !important;
+    box-shadow: 0 0 10px 3px gold !important;
+}
+
 
 .card-image-placeholder {
     width: 72px;
@@ -254,10 +240,10 @@ body {
 }
 
 .flying-card {
-    position: absolute; 
-    z-index: 1000; 
+    position: absolute;
+    z-index: 1000;
     opacity: 1;
-    transition-property: transform, opacity; 
+    transition-property: transform, opacity;
     transition-timing-function: ease-in-out;
     transform-origin: center center;
 }
@@ -266,17 +252,31 @@ body {
 #controls {
     margin: 15px 0;
     display: flex;
-    gap: 10px; 
+    gap: 10px;
     align-items: center;
     color: #e0e0e0;
 }
 #controls label {
      color: #e0e0e0;
 }
+/* Basic styling for the new toggle button */
+#controls button#hide-cards-toggle {
+    background-color: #6c757d; /* A neutral grey */
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+}
+#controls button#hide-cards-toggle:hover {
+    background-color: #5a6268;
+}
 
 
 #log-container {
-    width: 90%; 
+    width: 90%;
     max-width: 1100px;
     border: 1px solid #999;
     margin-top: 15px;
@@ -355,10 +355,10 @@ body {
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
-    min-height: 40px;
+    min-height: 40px; /* To prevent layout jump when empty */
 }
 
-.bid-button {
+.bid-button, .exchange-type-button { /* Added .exchange-type-button here */
     padding: 6px 12px;
     font-size: 0.9em;
     cursor: pointer;
@@ -369,10 +369,49 @@ body {
     transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.bid-button:hover {
+.bid-button:hover, .exchange-type-button:hover {
     background-color: #d0d0d0;
     border-color: #777;
 }
+
+.bid-button:disabled, .exchange-type-button:disabled {
+    background-color: #cccccc;
+    color: #888888;
+    cursor: not-allowed;
+    border-color: #bbbbbb;
+}
+
+
+#manual-action-confirm-container {
+    margin-top: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    min-height: 40px; /* To prevent layout jump when empty */
+}
+
+.confirm-action-button {
+    padding: 8px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    border: 1px solid #4cae4c;
+    background-color: #5cb85c;
+    color: white;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.confirm-action-button:hover {
+    background-color: #449d44;
+}
+
+.confirm-action-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    border-color: #bbbbbb;
+}
+
 
 #simulation-container {
     border: 1px solid #777;
@@ -458,8 +497,8 @@ body {
     border-radius: 4px;
     color: #f0f0f0;
     border: 1px solid #666;
-    white-space: pre-wrap; 
-    word-break: break-all; 
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 /* Bar Chart Styling */
@@ -468,47 +507,47 @@ body {
 }
 #bar-chart-area {
     display: flex;
-    justify-content: space-around; 
-    align-items: flex-end; 
+    justify-content: space-around;
+    align-items: flex-end;
     width: 100%;
-    height: 250px; 
-    padding: 20px 10px 10px 10px; 
+    height: 250px;
+    padding: 20px 10px 10px 10px;
     box-sizing: border-box;
     border: 1px solid #555;
     background-color: rgba(0, 0, 0, 0.1);
     border-radius: 4px;
-    position: relative; 
+    position: relative;
 }
 
 .bar-container {
     display: flex;
-    flex-direction: column; 
+    flex-direction: column;
     align-items: center;
     text-align: center;
-    width: 18%; 
+    width: 18%;
     color: #e0e0e0;
 }
 
 .bar-value {
     font-size: 0.9em;
     margin-bottom: 5px;
-    min-height: 1.2em; 
+    min-height: 1.2em;
 }
 
 .bar {
-    width: 70%; 
-    background-color: #4a90e2; 
+    width: 70%;
+    background-color: #4a90e2;
     border: 1px solid #357abd;
-    border-bottom: none; 
+    border-bottom: none;
     box-sizing: border-box;
-    transition: height 0.5s ease-out; 
-    min-height: 1px; 
+    transition: height 0.5s ease-out;
+    min-height: 1px;
 }
 
-.bar-p0 { background-color: #5cb85c; border-color: #4cae4c; } 
-.bar-p1 { background-color: #f0ad4e; border-color: #eea236; } 
-.bar-p2 { background-color: #d9534f; border-color: #d43f3a; } 
-.bar-p3 { background-color: #5bc0de; border-color: #46b8da; } 
+.bar-p0 { background-color: #5cb85c; border-color: #4cae4c; }
+.bar-p1 { background-color: #f0ad4e; border-color: #eea236; }
+.bar-p2 { background-color: #d9534f; border-color: #d43f3a; }
+.bar-p3 { background-color: #5bc0de; border-color: #46b8da; }
 
 
 .bar-label {
@@ -520,11 +559,11 @@ body {
 #bar-chart-area::before {
     content: '';
     position: absolute;
-    bottom: 30px; 
+    bottom: 30px;
     left: 0;
     right: 0;
     height: 1px;
-    z-index: -1; 
+    z-index: -1;
 }
 
 /* --- NEW: Progress Bar Styling --- */
