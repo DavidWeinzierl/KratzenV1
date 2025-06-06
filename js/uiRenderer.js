@@ -1,8 +1,10 @@
+// js/uiRenderer.js
+
 import { PLAYER_STATUS, GAME_PHASE, getCardImageFilename, WELI_RANK, EXCHANGE_TYPE, BID_OPTIONS } from './constants.js';
 import {
-    nextStep, // For the dynamically created Next Step button
+    nextStep,
     handleUserBid,
-    isSimulationRunning,
+    // isSimulationRunning, // This is imported below with other controller imports
     areOtherPlayersCardsHidden,
     selectedCardsForManualAction,
     handleManualCardSelectionForDiscardExchange,
@@ -10,9 +12,21 @@ import {
     handleManualExchangeTypeSelection,
     handleConfirmManualStandardExchange,
     handleManualCardPlay,
-    isManualBiddingMode
+    isManualBiddingMode,
+    isSimulationRunning // Make sure it's imported here
 } from './controller.js';
 import { GameRules } from './gameLogic.js';
+import { logMessage as importedLogMessageForUI } from './logger.js';
+
+// --- Helper function to conditionally log from UI if not simulating ---
+// This function should be at the module level (top-level)
+function logUIMessage(message) {
+    if (typeof importedLogMessageForUI === 'function' && !isSimulationRunning) {
+        importedLogMessageForUI(message);
+    } else if (!isSimulationRunning) { // Fallback
+        console.log("UI LOG:", message);
+    }
+}
 
 // --- Animation Helper: Get Absolute Coordinates of an Element ---
 export function getElementCoordinates(elementSelectorOrElement) {
@@ -31,7 +45,6 @@ export function getElementCoordinates(elementSelectorOrElement) {
     }
 
     if (!element) {
-        // Fallback if element not found (e.g. during initial load or error)
         const cardWidth = 72;
         const cardHeight = 108;
         return {
@@ -99,10 +112,10 @@ export function animateCardMovement(
                     top: destElementRect.top + (destElementRect.height / 2) - (108 / 2),
                     left: destElementRect.left + 5 + ((options.cardIndexInHand || 0) * cardWidthWithGap)
                 };
-            } else { // Default for discards, etc.
+            } else { 
                 destCoordsTarget = {
-                    top: destElementRect.top + (destElementRect.height / 2) - (108 / 2), // Center vertically in target
-                    left: destElementRect.left + (destElementRect.width / 2) - (72 / 2)    // Center horizontally in target
+                    top: destElementRect.top + (destElementRect.height / 2) - (108 / 2),
+                    left: destElementRect.left + (destElementRect.width / 2) - (72 / 2)
                  };
             }
         }
@@ -123,7 +136,7 @@ export function animateCardMovement(
         flyingCard.style.transitionDuration = animationSpeed + 's';
 
         gameBoard.appendChild(flyingCard);
-        void flyingCard.offsetWidth; // Trigger reflow for transition
+        void flyingCard.offsetWidth; 
 
         const dX = destCoordsTarget.left - sourceCoords.left;
         const dY = destCoordsTarget.top - sourceCoords.top;
@@ -133,35 +146,32 @@ export function animateCardMovement(
             if (options.revealAtEnd && cardToAnimate) {
                 flyingCard.src = `img/${getCardImageFilename(cardToAnimate)}`;
                 flyingCard.alt = cardToAnimate.toString();
-                // Short delay to see revealed card before removing
                 setTimeout(() => {
                     if (document.body.contains(flyingCard)) flyingCard.remove();
                     resolve();
-                }, 50); // Adjust delay as needed
+                }, 50); 
             } else {
                 if (document.body.contains(flyingCard)) flyingCard.remove();
                 resolve();
             }
         }, { once: true });
 
-        // Safety timeout in case transitionend doesn't fire
         setTimeout(() => {
             if (document.body.contains(flyingCard)) {
-                // console.warn("Animation fallback timeout triggered for flying card.");
                 flyingCard.remove();
                 resolve();
             }
-        }, animationSpeed * 1000 + 200); // Slightly longer than transition
+        }, animationSpeed * 1000 + 200); 
     });
 }
 
 
-// Helper to create a card element (Uses IMAGES)
+// Helper to create a card element
 function createCardElement(cardData, isSelectable = false, isSelected = false, isPlayable = false) {
     const imgElement = document.createElement('img');
     imgElement.classList.add('card-image');
 
-    imgElement.src = `img/${getCardImageFilename(cardData)}`; // Handles null for card back
+    imgElement.src = `img/${getCardImageFilename(cardData)}`; 
     imgElement.alt = cardData ? cardData.toString() : "Card Back";
 
     if (cardData && cardData.rank !== WELI_RANK) {
@@ -182,39 +192,35 @@ function createCardElement(cardData, isSelectable = false, isSelected = false, i
     imgElement.onerror = function() {
         console.error(`Failed to load image: ${this.src}`);
         this.alt = `Error loading ${this.alt}`;
-        this.style.border = '2px solid red'; // Visual error indicator
+        this.style.border = '2px solid red';
     };
     return imgElement;
 }
 
+
+// js/uiRenderer.js
+// ... (imports and helper functions like logUIMessage, getElementCoordinates, animateCardMovement, createCardElement remain the same) ...
 
 export function renderGame(gameState) {
     if (isSimulationRunning) {
         return;
     }
 
-    const logBox = document.getElementById('log-box');
-    // const nextStepButton = document.getElementById('next-step'); // No longer a fixed button
+    // Get the single master container for all dynamic buttons
+    const dynamicButtonsMasterContainer = document.getElementById('dynamic-buttons-master-container');
 
     if (!gameState) {
-        console.warn("Render called with null gameState. Displaying initial setup.");
-        if (logBox && logBox.innerHTML.trim() === '') {
-             typeof logMessage === 'function' // Ensure logMessage is defined (it should be)
-                ? logMessage("Game not initialized. Click 'Next Step' to start.")
-                : console.log("Game not initialized. Click 'Next Step' to start.");
-        }
-        // If game not initialized, show a Next Step button in the action area
-        const actionButtonsContainer = document.getElementById('action-buttons-container');
-        if (actionButtonsContainer) {
-            actionButtonsContainer.innerHTML = ''; // Clear it
+        logUIMessage("Game not initialized. Click 'Next Step' to start.");
+        if (dynamicButtonsMasterContainer) {
+            dynamicButtonsMasterContainer.innerHTML = ''; 
             const btn = document.createElement('button');
             btn.textContent = "Start Game / Next Step";
-            btn.classList.add('action-button', 'next-step-button-actionarea'); // Use general and specific class
-            btn.id = 'dynamic-next-step'; // Give it an ID if needed, though handler is direct
+            btn.classList.add('action-button', 'next-step-button-actionarea');
+            btn.id = 'dynamic-next-step'; 
             btn.addEventListener('click', nextStep);
-            actionButtonsContainer.appendChild(btn);
+            dynamicButtonsMasterContainer.appendChild(btn);
         }
-
+        // ... (rest of null gameState rendering for trump, talon) ...
         const trumpCardDisplayEl = document.getElementById('trump-card-display');
         if(trumpCardDisplayEl) {
             trumpCardDisplayEl.innerHTML = '';
@@ -240,20 +246,23 @@ export function renderGame(gameState) {
         return;
     }
 
-    // --- Clear dynamic button containers ---
-    const actionButtonsContainer = document.getElementById('action-buttons-container');
-    actionButtonsContainer.innerHTML = ''; // Clear for new buttons
-    const manualActionConfirmContainer = document.getElementById('manual-action-confirm-container');
-    manualActionConfirmContainer.innerHTML = '';
+    // Clear the master button container
+    if (dynamicButtonsMasterContainer) {
+        dynamicButtonsMasterContainer.innerHTML = ''; 
+    } else {
+        console.error("#dynamic-buttons-master-container not found!");
+        return; // Cannot proceed if container is missing
+    }
 
-    // --- Render Player Hands & Info ---
+
     const manualPlayerId = 0;
     const isP0TurnForManualAction = isManualBiddingMode && gameState.turnPlayerIndex === manualPlayerId;
 
+    // ... (gameState.players.forEach to render player info and hands - this part remains the same) ...
     gameState.players.forEach((player, index) => {
         const playerArea = document.getElementById(`player-area-${index}`);
         if (!playerArea) return;
-        playerArea.innerHTML = ''; // Clear previous content
+        playerArea.innerHTML = '';
 
         const infoDiv = document.createElement('div');
         infoDiv.classList.add('player-info');
@@ -263,7 +272,7 @@ export function renderGame(gameState) {
         const pointsHTML = `<p>Punkte: ${player.points.toFixed(1)}</p>`;
         let trickDisplay = player.tricksWonThisRound > 0 ? `<span class="tricks-highlight">${player.tricksWonThisRound}</span>` : player.tricksWonThisRound;
         const tricksHTML = `<p>Stiche: ${trickDisplay}</p>`;
-        const bidHTML = `<p>Spielzug: ${player.currentBid || ''}</p>`; // Display current bid
+        const bidHTML = `<p>Spielzug: ${player.currentBid || ''}</p>`;
         let actionText = player.lastActionLog || '-';
 
         const isP0Waiting = player.id === manualPlayerId && isP0TurnForManualAction &&
@@ -355,6 +364,8 @@ export function renderGame(gameState) {
         playerArea.appendChild(handDiv);
     });
 
+
+    // ... (rendering trump card, talon, trick area - this part remains the same) ...
     const trumpCardDisplayEl = document.getElementById('trump-card-display');
     const talonDisplayEl = document.getElementById('talon-display');
     if (trumpCardDisplayEl && talonDisplayEl) {
@@ -366,9 +377,12 @@ export function renderGame(gameState) {
             const cardPlaceholder = document.createElement('div'); cardPlaceholder.classList.add('card-image-placeholder'); trumpCardDisplayEl.appendChild(cardPlaceholder);
         }
         const suitLabel = document.createElement('div'); suitLabel.classList.add('trump-suit-label'); suitLabel.textContent = 'Trumpf'; trumpCardDisplayEl.appendChild(suitLabel);
+        
         talonDisplayEl.innerHTML = '';
-        const talonCardBackImg = createCardElement(null); talonDisplayEl.appendChild(talonCardBackImg);
-        const talonCountLabel = document.createElement('div'); talonCountLabel.classList.add('talon-count-label');
+        const talonCardBackImg = createCardElement(null); 
+        talonDisplayEl.appendChild(talonCardBackImg);
+        const talonCountLabel = document.createElement('div'); 
+        talonCountLabel.classList.add('talon-count-label');
         let talonCountToShow = 0;
         if (gameState.phase === GAME_PHASE.SETUP || (gameState.phase === GAME_PHASE.ROUND_END && gameState.deck && !gameState.deck.isEmpty()) || gameState.phase === GAME_PHASE.ANTE) {
             talonCountToShow = gameState.deck ? gameState.deck.cards.length : 33;
@@ -377,7 +391,8 @@ export function renderGame(gameState) {
         } else {
             talonCountToShow = gameState.talon ? gameState.talon.length : 0;
         }
-        talonCountLabel.textContent = `Stoß: ${talonCountToShow}`; talonDisplayEl.appendChild(talonCountLabel);
+        talonCountLabel.textContent = `Stoß: ${talonCountToShow}`; 
+        talonDisplayEl.appendChild(talonCountLabel);
     } else { console.warn("Could not find #trump-card-display or #talon-display."); }
 
     const trickArea = document.getElementById('trick-area');
@@ -391,6 +406,7 @@ export function renderGame(gameState) {
         } else { console.warn("Invalid play object in currentTrick."); }
     });
 
+    // ... (highlighting current player - this part remains the same) ...
     document.querySelectorAll('.player-area.turn-highlight').forEach(el => el.classList.remove('turn-highlight'));
     const isP0ActuallyWaiting = isP0TurnForManualAction && (gameState.isWaitingForBidInput || gameState.isWaitingForManualPlay || gameState.isWaitingForManualDiscardSelection || gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection);
     if (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex] && !gameState.isAnimating && !isP0ActuallyWaiting &&
@@ -403,7 +419,8 @@ export function renderGame(gameState) {
         if (p0Area) p0Area.classList.add('turn-highlight');
     }
 
-    // --- Render Action Buttons into #action-buttons-container ---
+
+    // --- Render Action Buttons into #dynamic-buttons-master-container ---
     let p0NeedsToMakeChoice = false;
     if (isP0TurnForManualAction) {
         if (gameState.isWaitingForBidInput && gameState.pendingValidBids.length > 0) {
@@ -411,64 +428,87 @@ export function renderGame(gameState) {
             gameState.pendingValidBids.forEach(bidOption => {
                 const button = document.createElement('button');
                 button.textContent = bidOption;
-                button.classList.add('action-button'); // General class
+                button.classList.add('action-button');
                 button.addEventListener('click', () => handleUserBid(bidOption));
-                actionButtonsContainer.appendChild(button);
+                dynamicButtonsMasterContainer.appendChild(button); // Use new container
             });
         } else if (gameState.isWaitingForManualDiscardSelection) {
-            p0NeedsToMakeChoice = true; // The choice is selecting cards + confirm
+            p0NeedsToMakeChoice = true;
             const button = document.createElement('button');
-            button.textContent = 'Confirm Discard';
-            button.classList.add('confirm-action-button'); // Specific class for confirm
+            button.textContent = 'Karte Wegwerfen';
+            button.classList.add('confirm-action-button');
             button.disabled = !selectedCardsForManualAction || selectedCardsForManualAction.length !== gameState.numCardsToDiscardManually;
             button.addEventListener('click', handleConfirmManualDiscard);
-            manualActionConfirmContainer.appendChild(button); // Confirm goes to its own container
+            dynamicButtonsMasterContainer.appendChild(button); // Use new container
         } else if (gameState.isWaitingForManualExchangeChoice) {
             p0NeedsToMakeChoice = true;
             const playerP0 = gameState.players[manualPlayerId];
             const validExchangeOpts = GameRules.getValidExchangeOptions(playerP0, gameState.trumpSuit);
-            const createExchangeButton = (text, type, isSpecial = false) => {
-                const button = document.createElement('button'); button.textContent = text;
-                button.classList.add('action-button'); button.dataset.exchangeType = type;
-                if (isSpecial) button.disabled = !validExchangeOpts.some(opt => opt.type === type);
-                button.addEventListener('click', () => handleManualExchangeTypeSelection(type));
-                actionButtonsContainer.appendChild(button);
-            };
-            createExchangeButton('Standard Exchange (Select Cards)', EXCHANGE_TYPE.STANDARD);
-            if (validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.SAU)) createExchangeButton('4 auf die Sau', EXCHANGE_TYPE.SAU, true);
-            if (validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.TRUMPF_PACKERL)) createExchangeButton('Trumpf-Packerl', EXCHANGE_TYPE.TRUMPF_PACKERL, true);
-            if (validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL)) createExchangeButton('Normales-Packerl', EXCHANGE_TYPE.NORMAL_PACKERL, true);
-        } else if (gameState.isWaitingForManualExchangeCardSelection) { // For standard exchange card selection
+            const hasStandardOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.STANDARD);
+            const hasNormalPackerlOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL);
+            const hideStandardBecauseOnlyNormalPackerlIsBetter = 
+                validExchangeOpts.length === 2 && hasStandardOpt && hasNormalPackerlOpt;
+
+            if (hideStandardBecauseOnlyNormalPackerlIsBetter) {
+                logUIMessage("UI: Standard Exchange option hidden as Normales Packerl is the preferred/enforced choice.");
+            }
+
+            validExchangeOpts.forEach(opt => {
+                let buttonText = '';
+                let createThisButton = true;
+                switch (opt.type) {
+                    case EXCHANGE_TYPE.STANDARD:
+                        buttonText = 'Karten kaufen';
+                        if (hideStandardBecauseOnlyNormalPackerlIsBetter) createThisButton = false;
+                        break;
+                    case EXCHANGE_TYPE.SAU: buttonText = '4 auf die Sau'; break;
+                    case EXCHANGE_TYPE.TRUMPF_PACKERL: buttonText = 'Trumpf-Packerl'; break;
+                    case EXCHANGE_TYPE.NORMAL_PACKERL: buttonText = 'Normales-Packerl'; break;
+                    default: createThisButton = false; console.warn("Unknown exchange type:", opt.type);
+                }
+                if (createThisButton) {
+                    const button = document.createElement('button');
+                    button.textContent = buttonText;
+                    button.classList.add('action-button');
+                    button.dataset.exchangeType = opt.type;
+                    button.addEventListener('click', () => handleManualExchangeTypeSelection(opt.type));
+                    dynamicButtonsMasterContainer.appendChild(button); // Use new container
+                }
+            });
+        } else if (gameState.isWaitingForManualExchangeCardSelection) {
             p0NeedsToMakeChoice = true;
             const button = document.createElement('button');
-            button.textContent = 'Confirm Standard Exchange';
+            button.textContent = 'Karten wegwerfen (Karten wählen)';
             button.classList.add('confirm-action-button');
             const cardsSelectedCount = selectedCardsForManualAction ? selectedCardsForManualAction.length : 0;
             button.disabled = cardsSelectedCount < 0 || cardsSelectedCount > 4;
             button.addEventListener('click', handleConfirmManualStandardExchange);
-            manualActionConfirmContainer.appendChild(button);
+            dynamicButtonsMasterContainer.appendChild(button); // Use new container
         } else if (gameState.isWaitingForManualPlay) {
-            p0NeedsToMakeChoice = true; // The choice is clicking a card, no button in action-buttons-container
+            p0NeedsToMakeChoice = true; 
+            const hintButton = document.createElement('button');
+            hintButton.textContent = "Click on card to play";
+            hintButton.classList.add('action-button', 'disabled-hint-button'); // Add a new class for styling
+            hintButton.disabled = true; // Make it non-interactive
+            dynamicButtonsMasterContainer.appendChild(hintButton);
         }
     }
 
-    // If P0 is not making a choice, OR if manual mode is off, show Next Step button (if game not over)
     if (!p0NeedsToMakeChoice && gameState.phase !== GAME_PHASE.ROUND_END) {
         const nextStepBtn = document.createElement('button');
         nextStepBtn.textContent = "Next Step";
-        nextStepBtn.id = 'dynamic-next-step'; // Can be useful for tests or specific styling
+        nextStepBtn.id = 'dynamic-next-step';
         nextStepBtn.classList.add('action-button', 'next-step-button-actionarea');
         nextStepBtn.addEventListener('click', nextStep);
-        nextStepBtn.disabled = gameState.isAnimating; // Disable if an animation is flagged
-        actionButtonsContainer.appendChild(nextStepBtn);
+        nextStepBtn.disabled = gameState.isAnimating;
+        dynamicButtonsMasterContainer.appendChild(nextStepBtn); // Use new container
     } else if (gameState.phase === GAME_PHASE.ROUND_END && !isSimulationRunning) {
-        // If round ended, show Next Step button to start new round
         const nextStepBtn = document.createElement('button');
         nextStepBtn.textContent = "Start New Round";
         nextStepBtn.id = 'dynamic-next-step';
         nextStepBtn.classList.add('action-button', 'next-step-button-actionarea');
         nextStepBtn.addEventListener('click', nextStep);
-        nextStepBtn.disabled = gameState.isAnimating; // Should be false
-        actionButtonsContainer.appendChild(nextStepBtn);
+        nextStepBtn.disabled = gameState.isAnimating;
+        dynamicButtonsMasterContainer.appendChild(nextStepBtn); // Use new container
     }
 }

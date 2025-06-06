@@ -336,6 +336,18 @@ body {
     padding: 5px 0; /* Add some padding */
 }
 
+#dynamic-buttons-master-container {
+    margin-top: 10px;
+    margin-bottom: 100px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center; /* Vertically align items if they have different heights */
+    flex-wrap: wrap;
+    min-height: 45px; /* Adjust as needed, or remove if not necessary */
+    padding: 5px 0;
+}
+
 /* General styling for buttons that will appear in #action-buttons-container */
 .action-button {
     padding: 8px 15px;
