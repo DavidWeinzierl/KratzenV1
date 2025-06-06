@@ -22,7 +22,7 @@ let player1StrategyConfig = JSON.parse(JSON.stringify(defaultStrategy));
 let otherPlayersStrategyConfig = JSON.parse(JSON.stringify(defaultStrategy));
 
 export let isSimulationRunning = false;
-export let areOtherPlayersCardsHidden = false;
+export let areOtherPlayersCardsHidden = true;
 
 // NEW: State for P0 manual card selection (exported for uiRenderer to read for highlighting)
 export let selectedCardsForManualAction = [];
@@ -70,9 +70,16 @@ export function setAnimationSpeed(speed) { currentAnimationSpeed = parseFloat(sp
 
 export function toggleOtherPlayersCardVisibility() {
     areOtherPlayersCardsHidden = !areOtherPlayersCardsHidden;
+
+    // Update button text based on the new state
+    const hideCardsToggleButton = document.getElementById('hide-cards-toggle');
+    if (hideCardsToggleButton) {
+        hideCardsToggleButton.textContent = areOtherPlayersCardsHidden ? "Karten anzeigen" : "Karten verdecken";
+    }
+
     if (!isSimulationRunning) {
         logMessage(`Other players' cards are now ${areOtherPlayersCardsHidden ? 'hidden' : 'visible'}.`);
-        if (gameState) {
+        if (gameState) { // gameState might be null if called very early
             renderGame(gameState);
         }
     }
@@ -109,6 +116,13 @@ export function initializeGame(isForSimulation = false) {
             console.warn("Manual mode toggle not found."); 
         }
 
+                // --- Set initial button text for hide/show cards toggle ---
+                const hideCardsToggleButton = document.getElementById('hide-cards-toggle');
+                if (hideCardsToggleButton) {
+                    // areOtherPlayersCardsHidden is now true by default
+                    hideCardsToggleButton.textContent = areOtherPlayersCardsHidden ? "Karten anzeigen" : "Karten verdecken";
+                }
+                // --- End set initial button text ---
         // ... (rest of the non-simulation initialization: logging settings, renderGame) ...
         logMessage(`Initial Settings -> Animation: ${currentAnimationSpeed.toFixed(1)}s, Ante: ${currentDealerAnte.toFixed(1)}, Muas: ${currentMuasPenalty.toFixed(1)}`);
         logMessage(`Initial Strategy (P0): ${JSON.stringify(player1StrategyConfig)}`);
