@@ -1632,7 +1632,8 @@ export async function nextStep() {
     }
 
     // After a step, check if the game got stuck
-    const p0IsNowWaitingBecauseStepFunctionPaused = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+    // Use an intermediate variable name for p0IsNowWaiting... to avoid potential conflicts if flags are re-defined below
+    const p0IsNowWaitingBecauseStepFunctionPaused_intermediate = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
         (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
          gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
          gameState.isWaitingForManualPlay);
@@ -1642,9 +1643,9 @@ export async function nextStep() {
     const stuckTurnPlayer = gameState.turnPlayerIndex === turnPlayerBeforeStep;
 
     if (stuckPhase && stuckTurnPlayer &&
-        (gameState.phase !== GAME_PHASE.DEALING || stuckSubPhase) &&
+        (gameState.phase !== GAME_PHASE.DEALING || stuckSubPhase) && // Dealing has sub-phases, so allow phase to be same if sub-phase changed
         gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP &&
-        !p0IsNowWaitingBecauseStepFunctionPaused // If P0 is waiting, it's an intentional pause
+        !p0IsNowWaitingBecauseStepFunctionPaused_intermediate // If P0 is waiting, it's an intentional pause, not stuck
        ) {
         if (!isSimulationRunning) logMessage(`Warning: Game may be stuck in phase ${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}. Forcing ROUND_END.`);
         gameState.phase = GAME_PHASE.ROUND_END;
@@ -1653,46 +1654,100 @@ export async function nextStep() {
     // --- UI Update and "Targeted Skip" Logic ---
     renderGame(gameState); // Render the state resulting from the step just processed
 
+    // --- Define the flags AFTER renderGame and BEFORE the logging block ---
+    // Flag: Is P0 currently paused because a process...Step() function FOR P0 ALREADY set a waiting flag?
+    const p0IsNowWaitingBecauseStepFunctionPaused = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+        (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
+         gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
+         gameState.isWaitingForManualPlay);
 
-    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && !isSimulationRunning) {
-        console.log("Auto-advance check for P0:");
-        console.log("  Phase:", gameState.phase);
-        console.log("  P0 hasBid:", gameState.players[0].hasBid);
-        console.log("  isWaitingForBidInput:", gameState.isWaitingForBidInput);
-        // ... log all relevant gameState.isWaitingFor... flags ...
-        console.log("  p0IsNowWaitingBecauseStepPaused:", p0IsNowWaitingBecauseStepFunctionPaused);
-    
-        // Log individual conditions for p0ShouldActManuallyNextAndNotYetPausedByStepFunction
-        const condBid1 = (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid);
-        console.log("    condBid1:", condBid1);
-        // ... log all other conditions ...
-        const condPlay = (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid);
-        console.log("    condPlay:", condPlay);
-    }
-
-    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.BIDDING_STAGE_1) {
-        console.log(`P0 about to bid in Stage 1. P0.hasBid = ${gameState.players[0].hasBid}`);
-    }
-    // Check if, AFTER the step we just processed, it's NOW P0's turn for a manual action AND
-    // the step function itself didn't already set a waiting flag (which means it paused correctly)
+    // Flag: After the step we just ran (e.g., an AI's turn), is it NOW P0's turn for a manual action,
+    // AND P0 is NOT YET paused for it by the step function itself?
     const p0ShouldActManuallyNextAndNotYetPausedByStepFunction =
         gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
-        ( (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid) ||
-          (gameState.phase === GAME_PHASE.BIDDING_STAGE_2 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker && gameState.players[0] !== gameState.oderPlayer) ||
-          (gameState.phase === GAME_PHASE.DEALER_DISCARD && gameState.dealerIndex === 0 && (gameState.players[0].hand.length - 4) > 0) ||
-          (gameState.phase === GAME_PHASE.EXCHANGE_PREP && gameState.sneaker && gameState.sneaker.id === 0 && gameState.needsOderDiscard) ||
-          (gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid && gameState.activePlayerOrder.some(p=>p.id===0) ) ||
-          (gameState.phase === GAME_PHASE.FINAL_DISCARD && gameState.needsFinalDiscardPlayers.some(p=>p.id===0) && !gameState.players[0].hasBid && (gameState.players[0].hand.length - 4) > 0 ) ||
-          (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid)
+        ( // Conditions for P0 to act:
+          (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && !gameState.isWaitingForBidInput) ||
+          (gameState.phase === GAME_PHASE.BIDDING_STAGE_2 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker && gameState.players[0] !== gameState.oderPlayer && !gameState.isWaitingForBidInput) ||
+          (gameState.phase === GAME_PHASE.DEALER_DISCARD && gameState.dealerIndex === 0 && (gameState.players[0].hand.length - 4) > 0 && !gameState.isWaitingForManualDiscardSelection) ||
+          (gameState.phase === GAME_PHASE.EXCHANGE_PREP && gameState.sneaker && gameState.sneaker.id === 0 && gameState.needsOderDiscard && !gameState.isWaitingForManualDiscardSelection) ||
+          (gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid && gameState.activePlayerOrder.some(p=>p.id===0) && !gameState.isWaitingForManualExchangeChoice && !gameState.isWaitingForManualExchangeCardSelection ) ||
+          (gameState.phase === GAME_PHASE.FINAL_DISCARD && gameState.needsFinalDiscardPlayers.some(p=>p.id===0) && !gameState.players[0].hasBid && (gameState.players[0].hand.length - 4) > 0 && !gameState.isWaitingForManualDiscardSelection ) ||
+          (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid && !gameState.isWaitingForManualPlay)
         ) &&
         !p0IsNowWaitingBecauseStepFunctionPaused; // Crucial: only auto-advance if the step function didn't already pause for P0
 
+    // --- THIS IS THE DETAILED LOGGING BLOCK ---
+    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && !isSimulationRunning) {
+        console.log("------------------------------------------");
+        console.log(`Auto-advance check for P0 (Phase: ${gameState.phase}, P0 Name: ${gameState.players[0].name}, P0 HasBid: ${gameState.players[0].hasBid})`);
+        // Log all the gameState.isWaitingFor... flags
+        console.log("  isWaitingForBidInput:", gameState.isWaitingForBidInput);
+        console.log("  isWaitingForManualDiscardSelection:", gameState.isWaitingForManualDiscardSelection);
+        console.log("  isWaitingForManualExchangeChoice:", gameState.isWaitingForManualExchangeChoice);
+        console.log("  isWaitingForManualExchangeCardSelection:", gameState.isWaitingForManualExchangeCardSelection);
+        console.log("  isWaitingForManualPlay:", gameState.isWaitingForManualPlay);
+        console.log("  ---");
+        console.log("  CALCULATED p0IsNowWaitingBecauseStepFunctionPaused:", p0IsNowWaitingBecauseStepFunctionPaused);
+        console.log("  CALCULATED p0ShouldActManuallyNextAndNotYetPausedByStepFunction:", p0ShouldActManuallyNextAndNotYetPausedByStepFunction);
 
+        // Log specific sub-conditions for the current phase if p0ShouldActManually... is false AND it was P0's turn
+        if (!p0ShouldActManuallyNextAndNotYetPausedByStepFunction && gameState.turnPlayerIndex === 0 &&
+            (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 || gameState.phase === GAME_PHASE.BIDDING_STAGE_2 ||
+             gameState.phase === GAME_PHASE.DEALER_DISCARD || gameState.phase === GAME_PHASE.EXCHANGE_PREP ||
+             gameState.phase === GAME_PHASE.EXCHANGE || gameState.phase === GAME_PHASE.FINAL_DISCARD ||
+             gameState.phase === GAME_PHASE.PLAYING_TRICKS)) {
+            
+            console.log("    Detailed sub-conditions for FAILED auto-advance in current phase:");
+            if (gameState.phase === GAME_PHASE.BIDDING_STAGE_1) {
+                 console.log("      BIDDING_STAGE_1 sub-conditions:");
+                 console.log("        GameRules.getValidBids(P0).length > 0:", GameRules.getValidBids(gameState).length > 0);
+                 console.log("        !P0.hasBid:", !gameState.players[0].hasBid);
+                 console.log("        !gameState.isWaitingForBidInput:", !gameState.isWaitingForBidInput);
+            } else if (gameState.phase === GAME_PHASE.BIDDING_STAGE_2) {
+                console.log("      BIDDING_STAGE_2 sub-conditions:");
+                console.log("        GameRules.getValidBids(P0).length > 0:", GameRules.getValidBids(gameState).length > 0);
+                console.log("        !P0.hasBid:", !gameState.players[0].hasBid);
+                console.log("        P0 !== sneaker:", gameState.players[0] !== gameState.sneaker);
+                console.log("        P0 !== oderPlayer:", gameState.players[0] !== gameState.oderPlayer);
+                console.log("        !gameState.isWaitingForBidInput:", !gameState.isWaitingForBidInput);
+            } else if (gameState.phase === GAME_PHASE.DEALER_DISCARD) {
+                console.log("      DEALER_DISCARD sub-conditions:");
+                console.log("        gameState.dealerIndex === 0:", gameState.dealerIndex === 0);
+                console.log("        (P0.hand.length - 4) > 0:", (gameState.players[0].hand.length - 4) > 0);
+                console.log("        !gameState.isWaitingForManualDiscardSelection:", !gameState.isWaitingForManualDiscardSelection);
+            } else if (gameState.phase === GAME_PHASE.EXCHANGE_PREP) {
+                console.log("      EXCHANGE_PREP sub-conditions:");
+                console.log("        gameState.sneaker && gameState.sneaker.id === 0:", gameState.sneaker && gameState.sneaker.id === 0);
+                console.log("        gameState.needsOderDiscard:", gameState.needsOderDiscard);
+                console.log("        !gameState.isWaitingForManualDiscardSelection:", !gameState.isWaitingForManualDiscardSelection);
+            } else if (gameState.phase === GAME_PHASE.EXCHANGE) {
+                console.log("      EXCHANGE sub-conditions:");
+                console.log("        !P0.hasBid:", !gameState.players[0].hasBid);
+                console.log("        gameState.activePlayerOrder.some(p=>p.id===0):", gameState.activePlayerOrder.some(p=>p.id===0));
+                console.log("        !gameState.isWaitingForManualExchangeChoice:", !gameState.isWaitingForManualExchangeChoice);
+                console.log("        !gameState.isWaitingForManualExchangeCardSelection:", !gameState.isWaitingForManualExchangeCardSelection);
+            } else if (gameState.phase === GAME_PHASE.FINAL_DISCARD) {
+                console.log("      FINAL_DISCARD sub-conditions:");
+                console.log("        gameState.needsFinalDiscardPlayers.some(p=>p.id===0):", gameState.needsFinalDiscardPlayers.some(p=>p.id===0));
+                console.log("        !P0.hasBid:", !gameState.players[0].hasBid);
+                console.log("        (P0.hand.length - 4) > 0:", (gameState.players[0].hand.length - 4) > 0);
+                console.log("        !gameState.isWaitingForManualDiscardSelection:", !gameState.isWaitingForManualDiscardSelection);
+            } else if (gameState.phase === GAME_PHASE.PLAYING_TRICKS) {
+                 console.log("      PLAYING_TRICKS sub-conditions:");
+                 console.log("        GameRules.getValidPlays(P0).length > 0:", GameRules.getValidPlays(gameState, gameState.players[0]).length > 0);
+                 console.log("        !P0.hasBid:", !gameState.players[0].hasBid);
+                 console.log("        !gameState.isWaitingForManualPlay:", !gameState.isWaitingForManualPlay);
+            }
+        }
+        console.log("------------------------------------------");
+    }
+    
+    // --- The rest of the logic for auto-advancing or showing Next Step button ---
     if (p0IsNowWaitingBecauseStepFunctionPaused) {
         // The process...Step function already set up the pause for P0.
         // uiRenderer will show P0's options and no "Next Step" button.
         if (!isSimulationRunning) logMessage(`--- Paused for P0 Input: Phase [${gameState.phase}] Player: P0 ---`);
-    } else if (p0ShouldActManuallyNextAndNotYetPaused && gameState.phase !== GAME_PHASE.ROUND_END && !isSimulationRunning) {
+    } else if (p0ShouldActManuallyNextAndNotYetPausedByStepFunction && gameState.phase !== GAME_PHASE.ROUND_END && !isSimulationRunning) {
         // The previous step completed (e.g., AI turn), and NOW it's P0's turn for a manual choice.
         // We "auto-click" Next Step to immediately process P0's turn setup.
         if (!isSimulationRunning) logMessage(`--- Auto-advancing to P0's manual choice in Phase [${gameState.phase}] ---`);
@@ -1715,7 +1770,6 @@ export async function nextStep() {
         }
     }
 }
-
 
 export async function handleUserBid(chosenBid) {
     if (!gameState || !gameState.isWaitingForBidInput || gameState.turnPlayerIndex !== 0) return; // Ensure it's P0's turn
