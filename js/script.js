@@ -13,7 +13,6 @@ import { RANKS } from './constants.js';
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Loaded. Initializing Simulation.");
 
-    const nextStepButton = document.getElementById('next-step');
     const animationSpeedSlider = document.getElementById('animation-speed-slider');
     const animationSpeedValueSpan = document.getElementById('animation-speed-value');
     const dealerAnteSlider = document.getElementById('dealer-ante-slider');
@@ -44,8 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (nextStepButton) nextStepButton.addEventListener('click', nextStep);
-    else console.error("Next Step button not found!");
+
 
     // NEW: Add event listener for the hide cards toggle button
     if (hideCardsToggleButton) {

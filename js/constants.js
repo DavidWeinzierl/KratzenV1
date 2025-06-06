@@ -76,7 +76,7 @@ export const BID_OPTIONS = {
     ODER_MIT: 'Oder mit',
     ODER_OHNE: 'Oder ohne',
     PLAY: 'I geh mit',
-    FOLD: 'Fold', // CHANGED FROM PASS
+    FOLD: 'I haus weg', // CHANGED FROM PASS
 };
 
 // --- Card Image Filename Mapping ---

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kratzen Online</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Basic styling for simulation container is in style.css -->
 </head>
 <body>
 
@@ -32,22 +31,22 @@
     </div>
 
     <div id="controls">
-        <button id="hide-cards-toggle" style="margin-right: 10px;">Toggle Card Visibility</button>
+        <button id="hide-cards-toggle" style="margin-right: 10px;">Alle Karten zeigen</button>
         <label style="margin-right: 10px;">
             <input type="checkbox" id="manual-mode-toggle"> Manual Mode
         </label>
-        <button id="next-step">Next Step</button>
+        <!-- "Next Step" button REMOVED from here -->
         <label for="animation-speed-slider" style="margin-left: 20px; margin-right: 5px;">Animation Speed:</label>
         <input type="range" id="animation-speed-slider" min="0.1" max="1.5" step="0.1" value="0.2">
         <span id="animation-speed-value" style="width: 30px; display: inline-block; text-align: right;">0.5s</span>
     </div>
 
-    <!-- Container for dynamic bidding and exchange type buttons -->
-    <div id="bid-options-container">
-        <!-- Bidding/Exchange type buttons will be added here dynamically -->
+    <!-- This container will now hold EITHER the "Next Step" button OR player choice buttons -->
+    <div id="action-buttons-container">
+        <!-- Dynamically populated by uiRenderer.js -->
     </div>
 
-    <!-- Container for dynamic confirmation buttons (e.g., Confirm Discard, Confirm Exchange) -->
+    <!-- Container for more specific confirmation buttons (e.g., Confirm Discard) -->
     <div id="manual-action-confirm-container">
         <!-- Confirmation buttons appear here -->
     </div>
@@ -77,7 +76,6 @@
         <!-- Strategy Variables Section -->
         <div id="strategy-variables-container" class="simulation-section">
             <h3>Strategy Variables</h3>
-
             <!-- Player 1 Strategy Parameters -->
             <h4>Player 1 (P0) Strategy:</h4>
             <h5>Bidding Phase 1 (P0):</h5>

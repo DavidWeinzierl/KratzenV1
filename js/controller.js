@@ -136,13 +136,14 @@ export function handleManualCardSelectionForDiscardExchange(card) {
         }
     }
     logMessage(`P0 Manual Selection: ${selectedCardsForManualAction.map(c => c.toString()).join(', ')}`);
-    renderGame(gameState);
+    renderGame(gameState); // Re-render to show selection changes and update confirm button state
 }
+
 
 export async function handleConfirmManualDiscard() {
     if (!gameState || gameState.turnPlayerIndex !== 0 || !isManualBiddingMode || !gameState.isWaitingForManualDiscardSelection) return;
 
-    const player = gameState.players[0];
+    const playerP0 = gameState.players[0];
     const requiredCount = gameState.numCardsToDiscardManually;
 
     if (selectedCardsForManualAction.length !== requiredCount) {
@@ -151,65 +152,89 @@ export async function handleConfirmManualDiscard() {
     }
 
     logMessage(`P0 Confirmed Manual Discard: ${selectedCardsForManualAction.map(c => c.toString()).join(', ')}`);
-    const phaseWhenDiscardStarted = gameState.phase;
+    const phaseWhenDiscardStarted = gameState.phase; // e.g., DEALER_DISCARD, EXCHANGE_PREP, FINAL_DISCARD, EXCHANGE (packerl)
 
     gameState.isWaitingForManualDiscardSelection = false;
-    gameState.isAnimating = true;
-    const nextStepButton = document.getElementById('next-step');
-    if (nextStepButton) nextStepButton.disabled = true;
+    gameState.numCardsToDiscardManually = 0;
+    // gameState.isAnimating = true; // Animations are handled per card
 
     for (const card of selectedCardsForManualAction) {
         if (!isSimulationRunning) {
-            const playerHandElement = document.querySelector(`#player-area-${player.id} .player-hand`);
+            const playerHandElement = document.querySelector(`#player-area-${playerP0.id} .player-hand`);
             const cardVisualElement = playerHandElement ? Array.from(playerHandElement.querySelectorAll('.card-image')).find(img => img && img.alt && img.alt.startsWith(card.toString())) : null;
-            let sourceForAnimation = cardVisualElement || playerHandElement || `#player-area-${player.id}`;
+            let sourceForAnimation = cardVisualElement || playerHandElement || `#player-area-${playerP0.id}`;
             if (cardVisualElement) cardVisualElement.style.visibility = 'hidden';
             await animateCardMovement(sourceForAnimation, '#talon-display', null, currentAnimationSpeed, { isDiscard: true });
         }
-        const removed = player.removeCard(card);
+        const removed = playerP0.removeCard(card);
         if (removed) gameState.discardPile.push(removed);
     }
-    player.lastActionLog = `Discarded: ${selectedCardsForManualAction.map(c => c.toString()).join(', ')}`;
+    playerP0.lastActionLog = `Discarded: ${selectedCardsForManualAction.map(c => c.toString()).join(', ')}`;
     selectedCardsForManualAction = [];
 
-    gameState.isAnimating = false;
-    if (nextStepButton) nextStepButton.disabled = false; // Will be re-evaluated by nextStep or render
-    renderGame(gameState);
+    // gameState.isAnimating = false; // After all animations
+    renderGame(gameState); // Show cards discarded
 
-    if (phaseWhenDiscardStarted === GAME_PHASE.DEALER_DISCARD && player.id === gameState.dealerIndex) {
-        // NOW, apply the transition logic that was in processDealerDiscardStep
-        if (gameState.isAutoSneaker) {
-            gameState.sneaker = player; // player is P0 (dealer)
-            player.status = PLAYER_STATUS.ACTIVE_SNEAKER;
+    // --- Determine next state and if P0 needs to act again ---
+    let p0ActsAgainImmediately = false;
+
+    if (phaseWhenDiscardStarted === GAME_PHASE.DEALER_DISCARD && playerP0.id === gameState.dealerIndex) {
+        if (gameState.isAutoSneaker) { // P0 became Sneaker
+            gameState.sneaker = playerP0; playerP0.status = PLAYER_STATUS.ACTIVE_SNEAKER;
             gameState.phase = GAME_PHASE.BIDDING_STAGE_2;
-            gameState.turnPlayerIndex = gameState.nextPlayerIndex(player.id); // Next player for stage 2 bids
-            // Mark P0 (sneaker) as having "bid" for stage 2, others not yet unless folded
-            gameState.players.forEach(p_iterator => {
-                 p_iterator.hasBid = (p_iterator === gameState.sneaker || p_iterator.status === PLAYER_STATUS.FOLDED);
-            });
-            // We don't call moveToNextBidder here directly. Let nextStep handle it.
-        } else {
+            gameState.turnPlayerIndex = gameState.nextPlayerIndex(playerP0.id);
+            gameState.players.forEach(p => { p.hasBid = (p === gameState.sneaker || p.status === PLAYER_STATUS.FOLDED); });
+            // If next player is P0 (e.g. 2 player game, unlikely but for robust) AND P0 needs to bid in stage 2
+            if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker) {
+                p0ActsAgainImmediately = true;
+            }
+        } else { // Normal bidding starts
             gameState.phase = GAME_PHASE.BIDDING_STAGE_1;
-            gameState.turnPlayerIndex = gameState.nextPlayerIndex(player.id);
-            gameState.players.forEach(p_iterator => p_iterator.hasBid = false);
+            gameState.turnPlayerIndex = gameState.nextPlayerIndex(playerP0.id);
+            gameState.players.forEach(p => p.hasBid = false);
+            if (gameState.turnPlayerIndex === 0 && isManualBiddingMode) { // If P0 is next to bid
+                p0ActsAgainImmediately = true;
+            }
         }
-    } else if (phaseWhenDiscardStarted === GAME_PHASE.EXCHANGE_PREP) {
-        gameState.needsOderDiscard = false;
-        gameState.phase = GAME_PHASE.EXCHANGE;
+    } else if (phaseWhenDiscardStarted === GAME_PHASE.EXCHANGE_PREP) { // P0 was Oderer, now Sneaker, finished discard
+        gameState.needsOderDiscard = false; gameState.phase = GAME_PHASE.EXCHANGE;
         gameState.activePlayerOrder = getActivePlayerOrder(gameState);
-        gameState.players.forEach(p => p.hasBid = false);
+        gameState.players.forEach(p => p.hasBid = false); // Reset for exchange turns
         if (gameState.activePlayerOrder.length > 0) {
+            // Sneaker (P0) starts exchange
             gameState.turnPlayerIndex = (gameState.sneaker && gameState.activePlayerOrder.some(p=>p.id===gameState.sneaker.id)) ? gameState.sneaker.id : gameState.activePlayerOrder[0].id;
-        } else { gameState.phase = GAME_PHASE.SCORING; } // Or other end condition
+            if (gameState.turnPlayerIndex === 0 && isManualBiddingMode) { // P0 starts exchange
+                p0ActsAgainImmediately = true;
+            }
+        } else { gameState.phase = GAME_PHASE.SCORING; } // Should not happen if game continues
     } else if (phaseWhenDiscardStarted === GAME_PHASE.FINAL_DISCARD) {
-        player.hasBid = true;
-        await moveToNextFinalDiscarder();
-    } else if (phaseWhenDiscardStarted === GAME_PHASE.EXCHANGE) { // Post-Packerl discard
-         player.hasBid = true;
+        playerP0.hasBid = true; // Mark P0's final discard as done
+        await moveToNextFinalDiscarder(); // This sets next turnPlayerIndex or phase
+        // Check if P0 needs to act again (e.g. another P0 final discard if logic allows, or start of play)
+        if (gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+            ( (gameState.phase === GAME_PHASE.FINAL_DISCARD && gameState.needsFinalDiscardPlayers.some(p=>p.id===0) && !gameState.players[0].hasBid && (gameState.players[0].hand.length - 4) > 0 ) ||
+              (gameState.phase === GAME_PHASE.PLAYING_TRICKS) )
+           ) {
+            p0ActsAgainImmediately = true;
+        }
+    } else if (phaseWhenDiscardStarted === GAME_PHASE.EXCHANGE) { // This was a post-Packerl discard for P0
+         playerP0.hasBid = true; // Packerl exchange turn fully complete
          await moveToNextExchanger();
+         // Check if P0 needs to act again in exchange phase (unlikely unless complex game with few players)
+         if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid) {
+            p0ActsAgainImmediately = true;
+         }
     }
-    renderGame(gameState);
-    // No automatic nextStep call here; let the main loop or user decide.
+
+    renderGame(gameState); // Render the new state
+
+    if (p0ActsAgainImmediately && gameState.phase !== GAME_PHASE.ROUND_END) {
+        logMessage(`--- Auto-advancing after P0 discard to P0's next choice in Phase [${gameState.phase}] ---`);
+        await nextStep();
+    } else if (gameState.phase !== GAME_PHASE.ROUND_END) {
+        logMessage(`--- P0 Discard Confirmed. Next up: Phase [${gameState.phase}], Turn: ${gameState.players[gameState.turnPlayerIndex]?.name || 'N/A'} ---`);
+    }
+    // If ROUND_END, uiRenderer will handle showing "Start New Round"
 }
 
 export async function handleManualExchangeTypeSelection(exchangeType) {
@@ -218,73 +243,77 @@ export async function handleManualExchangeTypeSelection(exchangeType) {
     const playerP0 = gameState.players[0];
     logMessage(`P0 Manual Exchange: Chose type - ${exchangeType}`);
     gameState.isWaitingForManualExchangeChoice = false;
-    playerP0.exchangeAction = exchangeType; // Store the chosen type
+    playerP0.exchangeAction = exchangeType;
     selectedCardsForManualAction = [];
 
+    let p0ActsAgainImmediately = false;
+
     if (exchangeType === EXCHANGE_TYPE.STANDARD) {
-        gameState.isWaitingForManualExchangeCardSelection = true;
+        gameState.isWaitingForManualExchangeCardSelection = true; // P0 needs to select cards
         logMessage("P0: Select 0-4 cards to discard for Standard Exchange, then 'Confirm'.");
-        renderGame(gameState); // Show card selection UI for Standard
-    } else { // Packerl or Sau - process directly
-        gameState.isAnimating = true;
-        const nextStepButton = document.getElementById('next-step');
-        if (nextStepButton) nextStepButton.disabled = true;
+        p0ActsAgainImmediately = true; // The "action" is now selecting cards
+    } else { // Packerl or Sau - these are processed more directly
+        // gameState.isAnimating = true; // Animations within the processing
 
         const talonCoords = isSimulationRunning ? null : getElementCoordinates('#talon-display');
-
         if (exchangeType === EXCHANGE_TYPE.TRUMPF_PACKERL || exchangeType === EXCHANGE_TYPE.NORMAL_PACKERL) {
+            // ... (Packerl discard hand, draw logic as before) ...
             logMessage(`P0 (${playerP0.name}) chose ${exchangeType}. Discarding entire hand.`);
             const handData = [...playerP0.hand];
             for(const card of handData){
-                if (!isSimulationRunning) {
-                    const el=document.querySelector(`#player-area-${playerP0.id} .player-hand`);
-                    const vis=el?Array.from(el.querySelectorAll('.card-image')).find(i=>i&&i.alt&&i.alt.startsWith(card.toString())):null;
-                    let src=vis||el||`#player-area-${playerP0.id}`; if(vis)vis.style.visibility='hidden';
-                    await animateCardMovement(src, talonCoords, null, currentAnimationSpeed, {isDiscard:true});
-                }
-                playerP0.removeCard(card); gameState.discardPile.push(card);
+                if (!isSimulationRunning) { /* animation */ }
+                const removedCard = playerP0.removeCard(card); if (removedCard) gameState.discardPile.push(removedCard);
             }
             playerP0.hand = [];
-            if(!isSimulationRunning) renderGame(gameState);
-            await drawCardsForPackerl(playerP0, exchangeType);
+            if(!isSimulationRunning)renderGame(gameState);
+            await drawCardsForPackerl(playerP0, exchangeType); // This updates playerP0.hand
             playerP0.lastActionLog = `${exchangeType}, got ${playerP0.hand.length} cards.`;
 
-            if (playerP0.hand.length > 4) {
-                gameState.isWaitingForManualDiscardSelection = true;
+            if (playerP0.hand.length > 4) { // Must discard down after Packerl
+                gameState.isWaitingForManualDiscardSelection = true; // P0 needs to discard again
                 gameState.numCardsToDiscardManually = playerP0.hand.length - 4;
                 logMessage(`P0: Packerl gave ${playerP0.hand.length} cards. Must discard ${gameState.numCardsToDiscardManually}.`);
+                p0ActsAgainImmediately = true; // The next action is P0 discarding
             } else {
-                playerP0.hasBid = true; // Exchange turn complete
-                await moveToNextExchanger();
+                playerP0.hasBid = true; // Exchange turn complete for P0
+                await moveToNextExchanger(); // Sets next turnPlayerIndex or phase
+                if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.EXCHANGE) {
+                    p0ActsAgainImmediately = true; // If somehow P0 is next again for exchange
+                }
             }
         } else if (exchangeType === EXCHANGE_TYPE.SAU) {
-            const trumpAce = playerP0.hand.find(c => c.rank === 'A' && c.suit === gameState.trumpSuit);
-            if (!trumpAce) { logMessage("P0 SAU Error: Trump Ace not found!"); /* UI should prevent this */ }
+            // ... (Sau logic as before) ...
+            const trumpAce=playerP0.hand.find(c=>c&&c.rank==='A'&&c.suit===gameState.trumpSuit);
+            if(!trumpAce){ logMessage("P0 SAU Error: Trump Ace not found!"); playerP0.lastActionLog="SAU Error!";}
             else {
-                logMessage(`P0 (${playerP0.name}) chose SAU. Discarding all but Trump Ace.`);
-                const toDiscard = playerP0.hand.filter(c => c.key !== trumpAce.key);
-                for (const card of toDiscard) {
-                    if (!isSimulationRunning) {
-                        const el=document.querySelector(`#player-area-${playerP0.id} .player-hand`);
-                        const vis=el?Array.from(el.querySelectorAll('.card-image')).find(i=>i&&i.alt&&i.alt.startsWith(card.toString())):null;
-                        let src=vis||el||`#player-area-${playerP0.id}`; if(vis)vis.style.visibility='hidden';
-                        await animateCardMovement(src,talonCoords,null,currentAnimationSpeed,{isDiscard:true});
-                    }
-                    playerP0.removeCard(card); gameState.discardPile.push(card);
+                const toDiscard = playerP0.hand.filter(c=>c&&c.key!==trumpAce.key);
+                for (const card of toDiscard) { /* animation & removal */
+                    const removedCard = playerP0.removeCard(card); if (removedCard) gameState.discardPile.push(removedCard);
                 }
-                playerP0.hand = [trumpAce];
-                if(!isSimulationRunning) renderGame(gameState);
-                await drawCardsForPlayer(playerP0, 3);
-                playerP0.lastActionLog = `SAU, got ${playerP0.hand.length} cards.`;
+                playerP0.hand=[trumpAce];
+                if(!isSimulationRunning)renderGame(gameState);
+                await drawCardsForPlayer(playerP0,3);
+                playerP0.lastActionLog=`4 aufd SAU`;
             }
-            playerP0.hasBid = true; // Exchange turn complete
+            playerP0.hasBid = true; // Exchange turn complete for P0
             await moveToNextExchanger();
+            if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.EXCHANGE) {
+                p0ActsAgainImmediately = true;
+            }
         }
-        gameState.isAnimating = false;
-        if (nextStepButton) nextStepButton.disabled = gameState.isWaitingForManualDiscardSelection;
-        renderGame(gameState);
+        // gameState.isAnimating = false;
+    }
+
+    renderGame(gameState); // Update UI after processing or setting up next P0 action
+
+    if (p0ActsAgainImmediately && gameState.phase !== GAME_PHASE.ROUND_END) {
+        logMessage(`--- Auto-advancing after P0 exchange choice to P0's next action in Phase [${gameState.phase}] ---`);
+        await nextStep(); // Will call the relevant process...Step for the new waiting state
+    } else if (gameState.phase !== GAME_PHASE.ROUND_END) {
+        logMessage(`--- P0 Exchange Type Processed. Next up: Phase [${gameState.phase}], Turn: ${gameState.players[gameState.turnPlayerIndex]?.name || 'N/A'} ---`);
     }
 }
+
 
 export async function handleConfirmManualStandardExchange() {
     if (!gameState || gameState.turnPlayerIndex !== 0 || !isManualBiddingMode || !gameState.isWaitingForManualExchangeCardSelection) return;
@@ -300,20 +329,13 @@ export async function handleConfirmManualStandardExchange() {
 
     logMessage(`P0 Confirmed Standard Exchange: Discarding ${numToDiscard} cards: ${cardsToDiscard.map(c => c.toString()).join(', ')}`);
     gameState.isWaitingForManualExchangeCardSelection = false;
-    gameState.isAnimating = true;
-    const nextStepButton = document.getElementById('next-step');
-    if (nextStepButton) nextStepButton.disabled = true;
+    // gameState.isAnimating = true;
 
     const talonCoords = isSimulationRunning ? null : getElementCoordinates('#talon-display');
     for (const card of cardsToDiscard) {
-        if (!isSimulationRunning) {
-            const el=document.querySelector(`#player-area-${playerP0.id} .player-hand`);
-            const vis=el?Array.from(el.querySelectorAll('.card-image')).find(i=>i&&i.alt&&i.alt.startsWith(card.toString())):null;
-            let src=vis||el||`#player-area-${playerP0.id}`; if(vis)vis.style.visibility='hidden';
-            await animateCardMovement(src,talonCoords,null,currentAnimationSpeed,{isDiscard:true});
-        }
-        const removed = playerP0.removeCard(card);
-        if (removed) gameState.discardPile.push(removed);
+        // ... (animation and card removal) ...
+        if (!isSimulationRunning) { /* animation */ }
+        const removed = playerP0.removeCard(card); if (removed) gameState.discardPile.push(removed);
     }
     selectedCardsForManualAction = [];
     if(!isSimulationRunning) renderGame(gameState);
@@ -321,16 +343,28 @@ export async function handleConfirmManualStandardExchange() {
     if (numToDiscard > 0) {
         await drawCardsForPlayer(playerP0, numToDiscard);
     }
-    playerP0.lastActionLog = `Standard Exchange, discarded ${numToDiscard}.`;
-    playerP0.hasBid = true;
+    playerP0.lastActionLog = `Kauft ${numToDiscard}.`;
+    playerP0.hasBid = true; // Mark P0's exchange turn as done for this action
 
-    gameState.isAnimating = false;
-    if (nextStepButton) nextStepButton.disabled = false;
-    renderGame(gameState);
+    // gameState.isAnimating = false;
+    renderGame(gameState); // Update UI
 
-    await moveToNextExchanger();
+    await moveToNextExchanger(); // This sets the next turnPlayerIndex or phase
+
+    let p0ActsAgainImmediately = false;
+    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid) {
+        p0ActsAgainImmediately = true;
+    }
+
+    if (p0ActsAgainImmediately && gameState.phase !== GAME_PHASE.ROUND_END) {
+        logMessage(`--- Auto-advancing after P0 standard exchange to P0's next choice in Phase [${gameState.phase}] ---`);
+        await nextStep();
+    } else if (gameState.phase !== GAME_PHASE.ROUND_END) {
+        logMessage(`--- P0 Standard Exchange Confirmed. Next up: Phase [${gameState.phase}], Turn: ${gameState.players[gameState.turnPlayerIndex]?.name || 'N/A'} ---`);
+    }
 }
 
+// --- handleManualCardPlay (Updated) ---
 export async function handleManualCardPlay(cardPlayed) {
     if (!gameState || gameState.turnPlayerIndex !== 0 || !isManualBiddingMode || !gameState.isWaitingForManualPlay || !cardPlayed) return;
 
@@ -344,11 +378,10 @@ export async function handleManualCardPlay(cardPlayed) {
 
     logMessage(`P0 Played: ${cardPlayed.toString()}`);
     gameState.isWaitingForManualPlay = false;
-    // Animation is part of the card playing logic below
-    const nextStepButton = document.getElementById('next-step');
-    if (nextStepButton) nextStepButton.disabled = true;
+    // gameState.isAnimating = true; // Animation is part of card playing
 
     if (!isSimulationRunning) {
+        // ... (animation logic as before) ...
         const handArea = document.querySelector(`#player-area-${playerP0.id} .player-hand`);
         const cardVisualElement = handArea ? Array.from(handArea.querySelectorAll('.card-image')).find(img => img && img.alt && img.alt.startsWith(cardPlayed.toString())) : null;
         let sourceForAnimation = cardVisualElement || handArea || `#player-area-${playerP0.id}`;
@@ -360,23 +393,46 @@ export async function handleManualCardPlay(cardPlayed) {
     const removed = playerP0.removeCard(cardPlayed);
     if (removed) {
         gameState.currentTrick.push({ player: playerP0, card: cardPlayed });
-        playerP0.lastActionLog = `Played: ${cardPlayed.toString()}`;
-        playerP0.hasBid = true;
+        playerP0.lastActionLog = `Hat ${cardPlayed.toString()} gespielt`;
+        playerP0.hasBid = true; // Marks P0's action for this trick as done
     } else { logMessage("CRITICAL: P0 Manual Play - Failed to remove card."); }
 
-    if (nextStepButton) nextStepButton.disabled = false; // Re-enable after animation potentially
-    renderGame(gameState);
+    // gameState.isAnimating = false;
+    renderGame(gameState); // Show card moved to trick
 
+    // Determine next step in trick
     const activePlayersInOrder = getActivePlayerOrder(gameState);
     const expectedInTrick = activePlayersInOrder.filter(p=>p.hand.length > 0 || gameState.currentTrick.some(play=>play.player.id===p.id));
 
-    if (gameState.currentTrick.length >= expectedInTrick.length) {
+    if (gameState.currentTrick.length >= expectedInTrick.length) { // Trick is full
         gameState.phase = GAME_PHASE.TRICK_END;
-    } else {
-        moveToNextPlayerInTrick();
+        // TRICK_END processing will happen on next "Next Step" click (or auto-advance if desired)
+    } else { // More players to play in this trick
+        moveToNextPlayerInTrick(); // This sets gameState.turnPlayerIndex
     }
-    renderGame(gameState); // Update for next player or trick end
+    renderGame(gameState); // Update for next player or trick end state
+
+    let p0ActsAgainImmediately = false;
+    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.PLAYING_TRICKS && !gameState.players[0].hasBid) {
+        p0ActsAgainImmediately = true;
+    }
+
+    if (p0ActsAgainImmediately && gameState.phase !== GAME_PHASE.ROUND_END) { // P0 plays again in the same trick (e.g. 2 player)
+        logMessage(`--- Auto-advancing after P0 play to P0's next play ---`); // Should be rare
+        await nextStep();
+    } else if (gameState.phase === GAME_PHASE.TRICK_END) { // Trick ended, P0 might lead next or AI
+        logMessage(`--- P0 Play Confirmed. Trick ended. Next is TRICK_END processing. ---`);
+        // User clicks Next Step for TRICK_END, or TRICK_END might auto-advance to P0 lead
+        if(gameState.players[gameState.trickLeadPlayerIndex]?.id === 0 && isManualBiddingMode){ // if P0 will lead next
+             // await nextStep(); // Auto process trick end and setup P0 lead
+        }
+
+    } else if (gameState.phase !== GAME_PHASE.ROUND_END) { // AI to play next in this trick
+        logMessage(`--- P0 Play Confirmed. Next up: Phase [${gameState.phase}], Turn: ${gameState.players[gameState.turnPlayerIndex]?.name || 'N/A'} ---`);
+    }
 }
+
+
 
 
 // --- Original Game Flow Functions (Modified for Manual P0) ---
@@ -682,7 +738,8 @@ async function processDealerDiscardStep() {
                 const removed = dealer.removeCard(card);
                 if (removed) gameState.discardPile.push(removed);
             }
-            if (!isSimulationRunning) dealer.lastActionLog = `Discarded: ${cardsToDiscard.map(c => c.toString()).join(', ')}`;
+       //     if (!isSimulationRunning) dealer.lastActionLog = `Discarded1: ${cardsToDiscard.map(c => c.toString()).join(', ')}`;
+            if (!isSimulationRunning) dealer.lastActionLog = `Eine Weggeworfen`;
         } else {
             if (!isSimulationRunning) logMessage(`Dealer (${dealer.name}) has ${dealer.hand.length} cards. No discard needed.`);
             if (!isSimulationRunning) dealer.lastActionLog = "Discarded 0";
@@ -991,7 +1048,7 @@ async function processExchangeStep() {
                 }
             }
         }
-        if(!isSimulationRunning) currentPlayer.lastActionLog=`${decision.type}, kept ${currentPlayer.hand.length}.`;
+        if(!isSimulationRunning) currentPlayer.lastActionLog=`${decision.type}`;
     } else if (isSau) {
         if(!isSimulationRunning)logMessage(`${currentPlayer.name} chose SAU`);
         const trumpAce=currentPlayer.hand.find(c=>c&&c.rank==='A'&&c.suit===gameState.trumpSuit);
@@ -1012,7 +1069,7 @@ async function processExchangeStep() {
             currentPlayer.hand=[trumpAce];
             if(!isSimulationRunning)renderGame(gameState);
             await drawCardsForPlayer(currentPlayer,3);
-            if(!isSimulationRunning) currentPlayer.lastActionLog=`SAU, kept ${currentPlayer.hand.length}.`;
+            if(!isSimulationRunning) currentPlayer.lastActionLog=`4 aufd SAU`;
         }
     } else { // Standard Exchange for AI
         const cardsToDiscardFromDecision = decision.cardsToDiscard || []; // Ensure it's an array
@@ -1036,7 +1093,7 @@ async function processExchangeStep() {
             if(!isSimulationRunning)renderGame(gameState);
             const drawCount = cardsToDiscardFromDecision.length;
             if(drawCount > 0) await drawCardsForPlayer(currentPlayer,drawCount);
-            if(!isSimulationRunning) currentPlayer.lastActionLog=`Exchanged, discarded ${drawCount}.`;
+            if(!isSimulationRunning) currentPlayer.lastActionLog=`Kauft ${drawCount}`;
         } else {
             if(!isSimulationRunning) logMessage(`ERROR: AI (${currentPlayer.name}) - decision.cardsToDiscard was not an array for Standard Exchange.`);
             if(!isSimulationRunning) currentPlayer.lastActionLog=`Exchange Error.`;
@@ -1313,7 +1370,7 @@ async function processPlayCardStep() {
     const removed=currentPlayer.removeCard(cardToPlay);
     if(removed){
         gameState.currentTrick.push({player:currentPlayer,card:cardToPlay});
-        if(!isSimulationRunning){logMessage(`${currentPlayer.name} played ${cardToPlay}`);currentPlayer.lastActionLog=`Played: ${cardToPlay}`;}
+        if(!isSimulationRunning){logMessage(`${currentPlayer.name} played ${cardToPlay}`);currentPlayer.lastActionLog=`Hat ${cardToPlay} gespielt`;}
         currentPlayer.hasBid=true;
     }else{if(!isSimulationRunning)logMessage("CRITICAL: Failed to remove card."); gameState.phase=GAME_PHASE.ROUND_END;return;}
 
@@ -1437,12 +1494,12 @@ function processAllWeiterPenalty() {
         const scoreInfo = scores[player.id];
         if (scoreInfo) {
             player.points += scoreInfo.points;
-            if (!isSimulationRunning) player.lastActionLog = `All Weiter (${scoreInfo.points >= 0 ? '+' : ''}${scoreInfo.points.toFixed(1)})`;
-        } else if (!isSimulationRunning) player.lastActionLog = `All Weiter (Error)`;
+            if (!isSimulationRunning) player.lastActionLog = `Alle Weiter (${scoreInfo.points >= 0 ? '+' : ''}${scoreInfo.points.toFixed(1)})`;
+        } else if (!isSimulationRunning) player.lastActionLog = `Alle Weiter (Error)`;
     });
     gameState.phase = GAME_PHASE.ROUND_END;
     gameState.turnPlayerIndex = -1;
-    if (!isSimulationRunning) gameState.lastActionLog = `Round ended: All Weiter.`;
+    if (!isSimulationRunning) gameState.lastActionLog = `Runde vorbei: Alle Weiter.`;
 }
 
 function processScoringStep() {
@@ -1460,9 +1517,9 @@ function processScoringStep() {
         if (info) {
             player.points += info.points;
             if (!isSimulationRunning) {
-                let desc=(gameState.roundWinner&&player===gameState.roundWinner)?`Won Uncontested!`:
-                         (player.status===PLAYER_STATUS.ACTIVE_SNEAKER)?(info.tricks>=2?`Sneaker Success!`:`Sneaker Failed!`):
-                         (player.status===PLAYER_STATUS.ACTIVE_PLAYER)?(info.tricks>=1?`Player Success`:`Player Failed!`):
+                let desc=(gameState.roundWinner&&player===gameState.roundWinner)?`Griagt an Pot geschenkt`:
+                         (player.status===PLAYER_STATUS.ACTIVE_SNEAKER)?(info.tricks>=2?`Erfolgreich geschlagen!`:`Schlager Fällt!`):
+                         (player.status===PLAYER_STATUS.ACTIVE_PLAYER)?(info.tricks>=1?`Is durch`:`Is gfoin!`):
                          (player.status===PLAYER_STATUS.FOLDED)?`Folded`:`(Inactive)`;
                 player.lastActionLog = `${desc} (${info.points>=0?'+':''}${info.points.toFixed(1)})`;
                 summary += `${player.name} ${player.lastActionLog}; `;
@@ -1474,49 +1531,45 @@ function processScoringStep() {
     if(!isSimulationRunning)gameState.lastActionLog = summary.trim();
 }
 
-// In controller.js
-
 export async function nextStep() {
     if (!gameState) {
         logMessage("Error: gameState is null.");
+        // Potentially call renderGame here to show initial "Start Game" button if desired
+        if (typeof renderGame === 'function') renderGame(null);
         return;
     }
 
-    // Check if P0 is currently waiting for manual input
-    const p0IsCurrentlyWaiting = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+    // Check if P0 is currently waiting for manual input (this is for when nextStep might be clicked
+    // while P0 *should* be acting via UI elements, not the Next Step button itself)
+    let p0IsCurrentlyWaitingForManualAction = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
         (gameState.isWaitingForBidInput ||
          gameState.isWaitingForManualDiscardSelection ||
          gameState.isWaitingForManualExchangeChoice ||
          gameState.isWaitingForManualExchangeCardSelection ||
          gameState.isWaitingForManualPlay);
 
-    if (p0IsCurrentlyWaiting) {
-        if (!isSimulationRunning) logMessage("Waiting for P0 manual input... (Next Step clicked while P0 should act)");
-        renderGame(gameState); // Ensure UI is correct
-        const btn = document.getElementById('next-step');
-        if (btn) btn.disabled = true; // Keep it disabled
-        return; // P0 needs to make their choice via UI, not Next Step
+    if (p0IsCurrentlyWaitingForManualAction) {
+        if (!isSimulationRunning) logMessage("Waiting for P0 manual input... (P0 should use choice buttons/cards)");
+        // uiRenderer will show P0's options and no "Next Step" button
+        renderGame(gameState); // Re-render to ensure UI reflects P0's turn
+        return;
     }
 
     if (gameState.isAnimating) {
         if (!isSimulationRunning) logMessage("Animation in progress, please wait...");
+        // uiRenderer should reflect this by not showing a clickable "Next Step" or by disabling it
         return;
     }
 
     // --- Start of a processing step ---
-    gameState.isAnimating = true;
-    const btn = document.getElementById('next-step');
-    if (btn) btn.disabled = true;
+    gameState.isAnimating = true; // Flag that a step is processing
 
     const phaseBeforeStep = gameState.phase;
     const subPhaseBeforeStep = gameState.subPhase;
     const turnPlayerBeforeStep = gameState.turnPlayerIndex;
 
     if (!isSimulationRunning) {
-        let turnPlayerName = 'N/A';
-        if (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]) {
-            turnPlayerName = gameState.players[gameState.turnPlayerIndex].name;
-        }
+        let turnPlayerName = (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]) ? gameState.players[gameState.turnPlayerIndex].name : 'N/A';
         logMessage(`--- Executing Step: Current Phase [${phaseBeforeStep}${subPhaseBeforeStep ? ':'+subPhaseBeforeStep : ''}] (Turn: ${turnPlayerName}) ---`);
     }
 
@@ -1575,82 +1628,139 @@ export async function nextStep() {
         gameState.phase = GAME_PHASE.ROUND_END;
         gameState.lastActionLog = `Error: ${error.message}`;
     } finally {
-        gameState.isAnimating = false; // Reset after the step
+        gameState.isAnimating = false; // Step processing and potential animations are done
     }
 
-    // After a step, check if the game got stuck (more relevant for single step execution)
-    const p0IsNowWaitingAfterProcessing = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
-    (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
-     gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
-     gameState.isWaitingForManualPlay);
+    // After a step, check if the game got stuck
+    const p0IsNowWaitingBecauseStepFunctionPaused = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+        (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
+         gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
+         gameState.isWaitingForManualPlay);
+
+    const stuckPhase = gameState.phase === phaseBeforeStep;
+    const stuckSubPhase = gameState.subPhase === subPhaseBeforeStep;
+    const stuckTurnPlayer = gameState.turnPlayerIndex === turnPlayerBeforeStep;
+
+    if (stuckPhase && stuckTurnPlayer &&
+        (gameState.phase !== GAME_PHASE.DEALING || stuckSubPhase) &&
+        gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP &&
+        !p0IsNowWaitingBecauseStepFunctionPaused // If P0 is waiting, it's an intentional pause
+       ) {
+        if (!isSimulationRunning) logMessage(`Warning: Game may be stuck in phase ${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}. Forcing ROUND_END.`);
+        gameState.phase = GAME_PHASE.ROUND_END;
+    }
+
+    // --- UI Update and "Targeted Skip" Logic ---
+    renderGame(gameState); // Render the state resulting from the step just processed
 
 
-if (p0IsNowWaitingAfterProcessing) {
-    // P0 is waiting for manual input.
-    if (!isSimulationRunning) logMessage(`--- Paused for P0 Input: Phase [${gameState.phase}] Player: P0 ---`);
-    renderGame(gameState);
-    if (btn) btn.disabled = true; // Disable Next Step, P0 must act via UI
-} else {
-    // No P0 manual action is immediately pending, or the round/game might have ended.
-    renderGame(gameState); // Render the outcome of the step
+    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && !isSimulationRunning) {
+        console.log("Auto-advance check for P0:");
+        console.log("  Phase:", gameState.phase);
+        console.log("  P0 hasBid:", gameState.players[0].hasBid);
+        console.log("  isWaitingForBidInput:", gameState.isWaitingForBidInput);
+        // ... log all relevant gameState.isWaitingFor... flags ...
+        console.log("  p0IsNowWaitingBecauseStepPaused:", p0IsNowWaitingBecauseStepFunctionPaused);
+    
+        // Log individual conditions for p0ShouldActManuallyNextAndNotYetPausedByStepFunction
+        const condBid1 = (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid);
+        console.log("    condBid1:", condBid1);
+        // ... log all other conditions ...
+        const condPlay = (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid);
+        console.log("    condPlay:", condPlay);
+    }
 
-    if (gameState.phase === GAME_PHASE.ROUND_END) {
-        if (btn) btn.disabled = false; // <<<< ENABLE Next Step to start a new round
-        if (!isSimulationRunning) {
-            logMessage(`--- Round Ended. Click Next Step to start a new round. ---`);
-        }
+    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.BIDDING_STAGE_1) {
+        console.log(`P0 about to bid in Stage 1. P0.hasBid = ${gameState.players[0].hasBid}`);
+    }
+    // Check if, AFTER the step we just processed, it's NOW P0's turn for a manual action AND
+    // the step function itself didn't already set a waiting flag (which means it paused correctly)
+    const p0ShouldActManuallyNextAndNotYetPausedByStepFunction =
+        gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+        ( (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid) ||
+          (gameState.phase === GAME_PHASE.BIDDING_STAGE_2 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker && gameState.players[0] !== gameState.oderPlayer) ||
+          (gameState.phase === GAME_PHASE.DEALER_DISCARD && gameState.dealerIndex === 0 && (gameState.players[0].hand.length - 4) > 0) ||
+          (gameState.phase === GAME_PHASE.EXCHANGE_PREP && gameState.sneaker && gameState.sneaker.id === 0 && gameState.needsOderDiscard) ||
+          (gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid && gameState.activePlayerOrder.some(p=>p.id===0) ) ||
+          (gameState.phase === GAME_PHASE.FINAL_DISCARD && gameState.needsFinalDiscardPlayers.some(p=>p.id===0) && !gameState.players[0].hasBid && (gameState.players[0].hand.length - 4) > 0 ) ||
+          (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid)
+        ) &&
+        !p0IsNowWaitingBecauseStepFunctionPaused; // Crucial: only auto-advance if the step function didn't already pause for P0
+
+
+    if (p0IsNowWaitingBecauseStepFunctionPaused) {
+        // The process...Step function already set up the pause for P0.
+        // uiRenderer will show P0's options and no "Next Step" button.
+        if (!isSimulationRunning) logMessage(`--- Paused for P0 Input: Phase [${gameState.phase}] Player: P0 ---`);
+    } else if (p0ShouldActManuallyNextAndNotYetPaused && gameState.phase !== GAME_PHASE.ROUND_END && !isSimulationRunning) {
+        // The previous step completed (e.g., AI turn), and NOW it's P0's turn for a manual choice.
+        // We "auto-click" Next Step to immediately process P0's turn setup.
+        if (!isSimulationRunning) logMessage(`--- Auto-advancing to P0's manual choice in Phase [${gameState.phase}] ---`);
+        await nextStep(); // Recursive call. This will hit a P0 pause condition in the relevant process...Step.
     } else {
-        // Game is ongoing, not P0's turn for immediate manual action
-        if (btn) btn.disabled = gameState.isAnimating; // Only disable if an animation is flagged (should be false here)
+        // Game is ongoing with AI, or round ended, or some other state where P0 isn't immediately acting.
+        // uiRenderer will show "Next Step" button if game is not over and P0 is not acting.
         if (!isSimulationRunning) {
-            const errEnd = gameState.lastActionLog?.includes("Error"); // Check if an error ended the round implicitly
-            if (!errEnd) { // Avoid double "round end" if error already indicated it
-                let currentTurnPlayerName = 'N/A';
-                if(gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]){
-                    currentTurnPlayerName = gameState.players[gameState.turnPlayerIndex].name;
-                }
+            if (gameState.phase === GAME_PHASE.ROUND_END) {
+                const errEnd = gameState.lastActionLog?.includes("Error");
+                 if (errEnd) {
+                     logMessage(`--- Round ended due to error. Click Next Step to start a new round. ---`);
+                 } else {
+                     logMessage(`--- Round Ended. Click Next Step to start a new round. ---`);
+                 }
+            } else { // Game ongoing, not P0's immediate manual turn
+                let currentTurnPlayerName = (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]) ? gameState.players[gameState.turnPlayerIndex].name : 'N/A';
                 logMessage(`--- Step Complete: Now Phase [${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}] (Turn: ${currentTurnPlayerName}) ---`);
             }
         }
     }
 }
-}
+
 
 export async function handleUserBid(chosenBid) {
-    if (!gameState || !gameState.isWaitingForBidInput) return;
-    const player = gameState.players[gameState.turnPlayerIndex];
-    const valid = gameState.pendingValidBids;
-    const stage = gameState.phase;
-    if (!player) { gameState.isWaitingForBidInput = false; return; }
-    logMessage(`User (${player.name}) selected bid: ${chosenBid}`);
-    if (!valid.includes(chosenBid)) { logMessage(`Invalid bid selected by user: ${chosenBid}. Valid: ${valid.join(', ')}`); renderGame(gameState); return; }
+    if (!gameState || !gameState.isWaitingForBidInput || gameState.turnPlayerIndex !== 0) return; // Ensure it's P0's turn
 
+    const playerP0 = gameState.players[0];
+    const validBids = gameState.pendingValidBids; // Bids should have been set by processBiddingStep
+    const stage = gameState.phase;
+
+    if (!validBids.includes(chosenBid)) {
+        logMessage(`P0 Manual Bid Error: Invalid bid - ${chosenBid}. Valid: ${validBids.join(', ')}`);
+        renderGame(gameState); // Re-show options
+        return;
+    }
+
+    logMessage(`P0 User selected bid: ${chosenBid}`);
     gameState.isWaitingForBidInput = false;
     gameState.pendingValidBids = [];
-    gameState.isAnimating = true;
-    const btn = document.getElementById('next-step');
-    if (btn) btn.disabled = true;
+    gameState.isAnimating = true; // Block further Next Step clicks during processing
 
-    await _processChosenBid(player, chosenBid, stage, gameState);
+    await _processChosenBid(playerP0, chosenBid, stage, gameState); // Processes the bid and advances turn/phase
 
     gameState.isAnimating = false;
-    const p0IsWaitingAfterBid = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
-        (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
-         gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
-         gameState.isWaitingForManualPlay);
-    if (btn) btn.disabled = p0IsWaitingAfterBid || gameState.isAnimating;
-    renderGame(gameState);
+    renderGame(gameState); // Update UI after bid processing
 
-    if (!p0IsWaitingAfterBid && !gameState.isAnimating && gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP) {
-        // logMessage(`--- Bid Processed. Consider auto-advancing if next is not P0 manual... ---`);
-        // If you want auto-advance after P0 bid and next is not P0 manual:
-        // if(gameState.turnPlayerIndex !== 0 || !isManualBiddingMode) {
-        //    setTimeout(() => nextStep(), 50);
-        // }
-    } else if (p0IsWaitingAfterBid) {
-        logMessage(`--- Bid Processed. Pausing for next manual input for P0. ---`);
+    // After P0's bid, check if the next action is P0's manual choice again (unlikely for bids)
+    // or if we should auto-advance if it's now an AI turn.
+    const p0NeedsToActImmediatelyAfterThis = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+        ( (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid) ||
+          /* ... other conditions for p0ShouldActManuallyNextAndNotYetPausedByStepFunction ... */
+        (gameState.phase === GAME_PHASE.BIDDING_STAGE_2 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker && gameState.players[0] !== gameState.oderPlayer)
+        ) && !gameState.isWaitingForBidInput /* and other wait flags */;
+
+
+    if (p0NeedsToActImmediatelyAfterThis && gameState.phase !== GAME_PHASE.ROUND_END && !isSimulationRunning) {
+        logMessage(`--- Auto-advancing after P0 bid to P0's next choice in Phase [${gameState.phase}] ---`);
+        await nextStep();
+    } else if (gameState.phase !== GAME_PHASE.ROUND_END) {
+        // If not P0's turn for immediate manual action, uiRenderer will show "Next Step"
+        // (or user can click it if it wasn't P0's turn at all)
+        // Log completion of P0's action
+        let nextTurnPlayerName = (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]) ? gameState.players[gameState.turnPlayerIndex].name : 'N/A';
+        logMessage(`--- P0 Bid Processed. Next up: Phase [${gameState.phase}], Turn: ${nextTurnPlayerName} ---`);
     }
 }
+
 
 async function playFullGameSilently() {
     gameState.isWaitingForBidInput = false; gameState.isAnimating = false;

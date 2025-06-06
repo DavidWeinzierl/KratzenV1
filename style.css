@@ -91,13 +91,12 @@ body {
 .player-hand .card-image {
     position: relative;
     margin-right: 5px;
-    cursor: default; /* Default cursor for cards */
+    cursor: default;
 }
 
-/* Style for cards when they are selectable/playable in manual mode */
 .player-hand .card-image.manual-playable {
     cursor: pointer;
-    filter: brightness(1.1); /* Slight brightness to indicate interactivity */
+    filter: brightness(1.1);
 }
 .player-hand .card-image.manual-playable:hover {
     filter: brightness(1.25);
@@ -226,7 +225,6 @@ body {
     display: block;
 }
 
-/* NEW: Style for selected cards */
 .card-image.card-selected {
     border: 3px solid gold !important;
     box-shadow: 0 0 10px 3px gold !important;
@@ -259,9 +257,8 @@ body {
 #controls label {
      color: #e0e0e0;
 }
-/* Basic styling for the new toggle button */
 #controls button#hide-cards-toggle {
-    background-color: #6c757d; /* A neutral grey */
+    background-color: #6c757d;
     color: white;
     padding: 8px 12px;
     border: none;
@@ -323,58 +320,54 @@ body {
     color: #d20058;
     font-style: italic;
     font-weight: bold;
-    font-size: 1 em;
+    font-size: 1em; /* Corrected from 1 em */
     margin-top: 5px !important;
 }
 
-#controls button#next-step {
-    background-color: #5cb85c;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s ease;
-}
-
-#controls button#next-step:hover {
-    background-color: #449d44;
-}
-
-#controls button#next-step:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
-
-#bid-options-container {
+/* Container for Next Step OR Player Choice Buttons */
+#action-buttons-container {
     margin-top: 10px;
     margin-bottom: 10px;
     display: flex;
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
-    min-height: 40px; /* To prevent layout jump when empty */
+    min-height: 45px; /* Adjusted min-height for typical button */
+    padding: 5px 0; /* Add some padding */
 }
 
-.bid-button, .exchange-type-button { /* Added .exchange-type-button here */
-    padding: 6px 12px;
-    font-size: 0.9em;
+/* General styling for buttons that will appear in #action-buttons-container */
+.action-button {
+    padding: 8px 15px;
+    font-size: 1em;
     cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
     border: 1px solid #999;
     background-color: #e0e0e0;
     color: #333;
-    border-radius: 4px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
-
-.bid-button:hover, .exchange-type-button:hover {
+.action-button:hover {
     background-color: #d0d0d0;
     border-color: #777;
 }
+.action-button:disabled {
+    background-color: #cccccc;
+    color: #888888;
+    cursor: not-allowed;
+    border-color: #bbbbbb;
+}
 
-.bid-button:disabled, .exchange-type-button:disabled {
+/* Specific style for a Next Step button if it's placed in #action-buttons-container */
+.next-step-button-actionarea { /* New class if needed for specific styling */
+    background-color: #5cb85c; /* Green like original next step */
+    color: white;
+    border-color: #4cae4c;
+}
+.next-step-button-actionarea:hover {
+    background-color: #449d44;
+}
+.next-step-button-actionarea:disabled {
     background-color: #cccccc;
     color: #888888;
     cursor: not-allowed;
@@ -388,7 +381,7 @@ body {
     display: flex;
     gap: 10px;
     justify-content: center;
-    min-height: 40px; /* To prevent layout jump when empty */
+    min-height: 45px; /* Adjusted min-height */
 }
 
 .confirm-action-button {
@@ -566,26 +559,26 @@ body {
     z-index: -1;
 }
 
-/* --- NEW: Progress Bar Styling --- */
+/* Progress Bar Styling */
 #simulation-progress-container {
     width: 100%;
-    background-color: #555; /* Darker background for the track */
+    background-color: #555;
     border-radius: 4px;
-    padding: 2px; /* Small padding to see the border of the fill */
+    padding: 2px;
     box-sizing: border-box;
     margin-top: 10px;
-    position: relative; /* For text overlay */
-    height: 24px; /* Container height */
+    position: relative;
+    height: 24px;
 }
 
 #simulation-progress-bar-fill {
-    width: 0%; /* Initial width */
-    height: 20px; /* Fill height, slightly less than container */
-    background-color: #4CAF50; /* Green progress color */
+    width: 0%;
+    height: 20px;
+    background-color: #4CAF50;
     border-radius: 3px;
-    transition: width 0.1s linear; /* Smooth width transition */
-    text-align: center; /* For text inside if needed, but separate span is better */
-    line-height: 20px; /* Vertically center text if it were inside */
+    transition: width 0.1s linear;
+    text-align: center;
+    line-height: 20px;
     color: white;
 }
 
@@ -598,6 +591,6 @@ body {
     transform: translate(-50%, -50%);
     font-size: 0.8em;
     color: #fff;
-    text-shadow: 1px 1px 1px #000; /* Make text readable over bar */
-    pointer-events: none; /* Allow clicks through the text */
+    text-shadow: 1px 1px 1px #000;
+    pointer-events: none;
 }
