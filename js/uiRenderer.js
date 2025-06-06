@@ -435,7 +435,7 @@ export function renderGame(gameState) {
         } else if (gameState.isWaitingForManualDiscardSelection) {
             p0NeedsToMakeChoice = true;
             const button = document.createElement('button');
-            button.textContent = 'Karte Wegwerfen';
+            button.textContent = 'Karte Wegwerfen (Karte wählen)';
             button.classList.add('confirm-action-button');
             button.disabled = !selectedCardsForManualAction || selectedCardsForManualAction.length !== gameState.numCardsToDiscardManually;
             button.addEventListener('click', handleConfirmManualDiscard);

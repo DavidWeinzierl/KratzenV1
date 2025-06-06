@@ -33,12 +33,12 @@
     <div id="controls">
         <button id="hide-cards-toggle" style="margin-right: 10px;">Alle Karten zeigen</button>
         <label style="margin-right: 10px;">
-            <input type="checkbox" id="manual-mode-toggle"> Manual Mode
+            <input type="checkbox" id="manual-mode-toggle" checked> Manual Mode
         </label>
         <!-- "Next Step" button REMOVED from here -->
         <label for="animation-speed-slider" style="margin-left: 20px; margin-right: 5px;">Animation Speed:</label>
-        <input type="range" id="animation-speed-slider" min="0.1" max="1.5" step="0.1" value="0.2">
-        <span id="animation-speed-value" style="width: 30px; display: inline-block; text-align: right;">0.5s</span>
+        <input type="range" id="animation-speed-slider" min="1" max="10" step="1" value="9"> <!-- MODIFIED min, max, step, value -->
+        <span id="animation-speed-value" style="width: 30px; display: inline-block; text-align: right;">5</span> <!-- MODIFIED initial display -->
     </div>
 
     <div id="dynamic-buttons-master-container">

@@ -86,29 +86,30 @@ function getStrategyForPlayer(player) {
 export function initializeGame(isForSimulation = false) {
     if (!isForSimulation) logMessage("Initializing New Game...");
     gameState = new GameState(PLAYER_COUNT);
-    gameState.phase = GAME_PHASE.SETUP;
-    gameState.isWaitingForBidInput = false;
-    gameState.pendingValidBids = [];
-    gameState.isAnimating = false;
-    // Initialize manual mode flags on gameState
-    gameState.isWaitingForManualDiscardSelection = false;
-    gameState.numCardsToDiscardManually = 0;
-    gameState.isWaitingForManualExchangeChoice = false;
-    gameState.isWaitingForManualExchangeCardSelection = false;
+    // ... (rest of gameState initialization) ...
     gameState.isWaitingForManualPlay = false;
-    selectedCardsForManualAction = []; // Reset global selection
+    selectedCardsForManualAction = [];
 
     if (!isForSimulation) {
         const manualToggle = document.getElementById('manual-mode-toggle');
         if (manualToggle) {
-            isManualBiddingMode = manualToggle.checked; // This now controls all P0 manual interactions
+            // Read the initial state of the checkbox (which is now 'checked' by default in HTML)
+            isManualBiddingMode = manualToggle.checked; 
+            // Log the initial state
+            logMessage(`Manual Mode (P0) initialized to: ${isManualBiddingMode}`); 
+
+            // The event listener will handle subsequent changes
             manualToggle.addEventListener('change', (event) => {
                 isManualBiddingMode = event.target.checked;
-                logMessage(`Manual Mode (P0): ${isManualBiddingMode}`);
-                if (gameState) renderGame(gameState); // Re-render in case UI needs to change based on mode
+                logMessage(`Manual Mode (P0) changed to: ${isManualBiddingMode}`);
+                if (gameState) renderGame(gameState); 
             });
-        } else { isManualBiddingMode = false; console.warn("Manual mode toggle not found."); }
+        } else { 
+            isManualBiddingMode = false; // Fallback if toggle not found
+            console.warn("Manual mode toggle not found."); 
+        }
 
+        // ... (rest of the non-simulation initialization: logging settings, renderGame) ...
         logMessage(`Initial Settings -> Animation: ${currentAnimationSpeed.toFixed(1)}s, Ante: ${currentDealerAnte.toFixed(1)}, Muas: ${currentMuasPenalty.toFixed(1)}`);
         logMessage(`Initial Strategy (P0): ${JSON.stringify(player1StrategyConfig)}`);
         logMessage(`Initial Strategy (Others): ${JSON.stringify(otherPlayersStrategyConfig)}`);
