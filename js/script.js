@@ -9,7 +9,45 @@ import {
     runBatchSimulation,
     toggleOtherPlayersCardVisibility
 } from './controller.js';
-import { RANKS } from './constants.js';
+
+import { RANKS, SUITS, WELI_RANK, WELI_SUIT, getCardImageFilename } from './constants.js';
+import { logMessage } from './logger.js';
+
+// --- NEW: Preload all card images for smoother animations ---
+async function preloadCardImages() {
+    logMessage("Preloading card images...");
+    const allCardsToLoad = [];
+
+    // Add all standard suit cards
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            allCardsToLoad.push({ suit, rank });
+        }
+    }
+    // Add the Weli
+    allCardsToLoad.push({ suit: WELI_SUIT, rank: WELI_RANK });
+    // Add the card back
+    allCardsToLoad.push(null);
+
+    const imagePromises = allCardsToLoad.map(card => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const filename = getCardImageFilename(card);
+            img.src = `img/${filename}`;
+            img.onload = () => resolve(filename);
+            img.onerror = () => reject(filename);
+        });
+    });
+
+    try {
+        await Promise.all(imagePromises);
+        logMessage("All card images preloaded successfully.");
+    } catch (failedFilename) {
+        logMessage(`Error: Failed to preload image: ${failedFilename}`);
+        console.error(`Failed to preload image: img/${failedFilename}`);
+    }
+}
+
 
 // --- Helper function to map virtual speed to seconds ---
 function mapVirtualSpeedToSeconds(virtualSpeed) {
@@ -35,8 +73,11 @@ function mapVirtualSpeedToSeconds(virtualSpeed) {
     return parseFloat(seconds.toFixed(2)); // Return as number with 2 decimal places
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Loaded. Initializing Simulation.");
+
+        // --- NEW: Call the preload function ---
+        await preloadCardImages();
 
     const animationSpeedSlider = document.getElementById('animation-speed-slider');
     const animationSpeedValueSpan = document.getElementById('animation-speed-value');
