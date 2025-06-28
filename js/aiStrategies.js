@@ -113,7 +113,7 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
     const trumpCardsInHand = _getTrumpCards(player, trumpSuit);
     const numTrumps = trumpCardsInHand.length;
 
-    // --- NEW: Check if any previous player in exchange order discarded zero cards ---
+
     let anyPreviousPlayerDiscardedZero = false;
     if (gameState.activePlayerOrder && gameState.activePlayerOrder.length > 0) {
         const currentPlayerIndexInOrder = gameState.activePlayerOrder.findIndex(p => p.id === player.id);
@@ -135,7 +135,7 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
             }
         }
     }
-    // --- END NEW Check ---
+
 
     // 1. Prioritize AI Plans (Sau, Packerl if last join)
     if (player.aiPlan && player.aiPlan.intendSau && config.exchange.considerSauIfPlanned) {
@@ -219,7 +219,6 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
         }
 
 
-        // --- RE-EVALUATE for Normales Packerl if aces were discarded due to new rule ---
         if (anyPreviousPlayerDiscardedZero) {
             const tempHandAfterStandardDiscard = player.hand.filter(c => !cardsToDiscardForStandard.some(d => d.key === c.key));
             const trumpsInTempHand = tempHandAfterStandardDiscard.filter(c => (trumpSuit && c.suit === trumpSuit) || c.rank === WELI_RANK).length;
@@ -228,7 +227,6 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
                 return { type: EXCHANGE_TYPE.NORMAL_PACKERL, cardsToDiscard: [] };
             }
         }
-        // --- END RE-EVALUATION ---
 
         logMessage(`AI (${player.name}): Strategy Exchange - Standard. Discarding ${cardsToDiscardForStandard.length} cards: ${cardsToDiscardForStandard.map(c=>c.toString()).join(', ')}.`);
         return { type: EXCHANGE_TYPE.STANDARD, cardsToDiscard: cardsToDiscardForStandard };
@@ -248,6 +246,22 @@ export function decidePlayLead(player, validPlays, gameState, config) {
     const trumpSuit = gameState.trumpSuit;
     const isSimulating = config.isSimulationRunning;
 
+
+        // ---  LOGIC for 3rd Trick, 2 Trumps in Hand ---
+    // Condition: 3rd trick (tricksPlayedCount is 2), player has 2 cards, both are trumps, one is Ace
+    if (gameState.tricksPlayedCount === 2 && player.hand.length === 2) {
+        const trumpCardsInHand = _getTrumpCards(player, trumpSuit);
+        if (trumpCardsInHand.length === 2) { // Both cards are trumps
+            const trumpAce = trumpCardsInHand.find(c => c && c.rank === 'A' && c.suit === trumpSuit);
+            // Check if the trump ace exists and is a valid play
+            if (trumpAce && validPlays.some(vp => vp && vp.key === trumpAce.key)) {
+                if (!isSimulating) {
+                    logMessage(`AI (${player.name}): Strategy PlayLead - Special Rule: 3rd trick, 2 trumps left. Leading with Trump Ace.`);
+                }
+                return trumpAce;
+            }
+        }
+    }
     // Check if a SauWeli plan is active or if the player generally has the SauWeli combo
     if (player.aiPlan && player.aiPlan.sauWeliLeadState) {
         const currentTrumpAce = player.hand.find(c => c && c.rank === 'A' && c.suit === trumpSuit);
