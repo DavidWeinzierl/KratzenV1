@@ -70,97 +70,68 @@
         <!-- Strategy Variables Section -->
         <div id="strategy-variables-container" class="simulation-section">
             <h3>Strategy Variables</h3>
-            <!-- Player 1 Strategy Parameters -->
-            <h4>Player 1 (P0) Strategy:</h4>
-            <h5>Bidding Phase 1 (P0):</h5>
-            <div class="slider-group">
-                <label for="min-companion-trump-value-select-p1">Min Companion Trump (for Sneak w/ Ace):</label>
+            <div class="strategy-row-header">
+                <h4>Player 1 (P0) Strategy</h4>
+                <h4></h4> <!-- Empty cell for the label column -->
+                <h4>Other Players (P1, P2, P3) Strategy</h4>
+            </div>
+            <hr>
+            
+            <h5>Bidding Phase 1:</h5>
+            <div class="strategy-row">
                 <select id="min-companion-trump-value-select-p1">
                     <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="X" selected>X (10)</option><option value="U">U (Unter)</option><option value="O">O (Ober)</option><option value="K">K (King)</option><option value="A">A (Ace)</option>
                 </select>
-            </div>
-
-            <div class="slider-group">
-                <label for="min-trump-oder-mit-select-p1">Min Trump (for Oder Mit w/ Weli & non-Trump Ace):</label>
-                <select id="min-trump-oder-mit-select-p1">
-                    <option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="X">X (10)</option><option value="U">U (Unter)</option><option value="O">O (Ober)</option><option value="K">K (King)</option><option value="A">A (Ace)</option>
-                </select>
-            </div>
-
-
-            <h5>Bidding Phase 2 (P0):</h5>
-            <div class="slider-group">
-                <label for="min-hand-value-play-sneaker-slider-p1">Min Hand Value to Play (w/ Sneaker):</label>
-                <input type="range" id="min-hand-value-play-sneaker-slider-p1" min="0" max="20" step="1" value="8">
-                <span class="value-display" id="min-hand-value-play-sneaker-value-p1">8</span>
-            </div>
-            <div class="slider-group">
-                <label for="play-if-last-no-one-joined-checkbox-p1">Force Play if Last (No Partners):</label>
-                <input type="checkbox" id="play-if-last-no-one-joined-checkbox-p1" checked>
-            </div>
-
-            <h5>Exchange Phase (P0):</h5>
-            <div class="slider-group">
-                <label for="max-trump-value-trumpfpackerl-select-p1">Max Trump Value (for Trumpf-Packerl):</label>
-                <select id="max-trump-value-trumpfpackerl-select-p1">
-                    <option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="X">X (10)</option><option value="U">U (Unter)</option>
-                </select>
-            </div>
-             <div class="slider-group">
-                <label for="consider-sau-if-planned-checkbox-p1">Consider "4 auf die Sau" if Planned:</label>
-                <input type="checkbox" id="consider-sau-if-planned-checkbox-p1" checked>
-            </div>
-            <hr style="margin: 15px 0;">
-
-            <!-- Other Players Strategy Parameters -->
-            <h4>Other Players (P1, P2, P3) Strategy:</h4>
-            <h5>Bidding Phase 1 (Others):</h5>
-            <div class="slider-group">
-                <label for="min-companion-trump-value-select-others">Min Companion Trump (for Sneak w/ Ace):</label>
+                <label>Min Companion Trump (for Sneak w/ Ace)</label>
                 <select id="min-companion-trump-value-select-others">
                     <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="X" selected>X (10)</option><option value="U">U (Unter)</option><option value="O">O (Ober)</option><option value="K">K (King)</option><option value="A">A (Ace)</option>
                 </select>
             </div>
-            <div class="slider-group">
-                <label for="solo-ace-sneak-chance-slider-others">Solo Trump Ace Sneak Chance:</label>
-                <input type="range" id="solo-ace-sneak-chance-slider-others" min="0" max="1" step="0.05" value="0.3">
-                <span class="value-display" id="solo-ace-sneak-chance-value-others">0.30</span>
-            </div>
-            <div class="slider-group">
-                <label for="min-trump-oder-mit-select-others">Min Trump (for Oder Mit w/ Weli & non-Trump Ace):</label>
+            <div class="strategy-row">
+                <select id="min-trump-oder-mit-select-p1">
+                    <option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="X">X (10)</option><option value="U">U (Unter)</option><option value="O">O (Ober)</option><option value="K">K (King)</option><option value="A">A (Ace)</option>
+                </select>
+                <label>Min Trump (for Oder Mit w/ Weli & non-Trump Ace)</label>
                 <select id="min-trump-oder-mit-select-others">
                     <option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="X">X (10)</option><option value="U">U (Unter)</option><option value="O">O (Ober)</option><option value="K">K (King)</option><option value="A">A (Ace)</option>
                 </select>
             </div>
-            <div class="slider-group">
-                <label for="always-sneak-last-no-bid-checkbox-others">Always Sneak if Last (Solo Ace, No Bids Yet):</label>
-                <input type="checkbox" id="always-sneak-last-no-bid-checkbox-others" checked>
+            <div class="strategy-row">
+                <span><!-- Empty cell for P0 control --></span>
+                <label>Solo Ace Sneak Chance (Position-Based)</label>
+                <span><!-- Empty cell for Others control --></span>
             </div>
-
-            <h5>Bidding Phase 2 (Others):</h5>
-            <div class="slider-group">
-                <label for="min-hand-value-play-sneaker-slider-others">Min Hand Value to Play (w/ Sneaker):</label>
-                <input type="range" id="min-hand-value-play-sneaker-slider-others" min="0" max="20" step="1" value="8">
-                <span class="value-display" id="min-hand-value-play-sneaker-value-others">8</span>
+        
+            <h5 style="margin-top: 20px;">Bidding Phase 2:</h5>
+            <div class="strategy-row">
+                <div class="slider-with-value">
+                    <input type="range" id="min-hand-value-play-sneaker-slider-p1" min="0" max="20" step="1" value="8">
+                    <span class="value-display" id="min-hand-value-play-sneaker-value-p1">8</span>
+                </div>
+                <label>Min Hand Value to Play (w/ Sneaker)</label>
+                <div class="slider-with-value">
+                    <input type="range" id="min-hand-value-play-sneaker-slider-others" min="0" max="20" step="1" value="8">
+                    <span class="value-display" id="min-hand-value-play-sneaker-value-others">8</span>
+                </div>
             </div>
-            <div class="slider-group">
-                <label for="play-if-last-no-one-joined-checkbox-others">Force Play if Last (No Partners):</label>
-                <input type="checkbox" id="play-if-last-no-one-joined-checkbox-others" checked>
-            </div>
-
-            <h5>Exchange Phase (Others):</h5>
-            <div class="slider-group">
-                <label for="max-trump-value-trumpfpackerl-select-others">Max Trump Value (for Trumpf-Packerl):</label>
+            
+            <h5 style="margin-top: 20px;">Exchange Phase:</h5>
+            <div class="strategy-row">
+                <select id="max-trump-value-trumpfpackerl-select-p1">
+                    <option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="X">X (10)</option><option value="U">U (Unter)</option>
+                </select>
+                <label>Max Trump Value (for Trumpf-Packerl)</label>
                 <select id="max-trump-value-trumpfpackerl-select-others">
                     <option value="7">7</option><option value="8">8</option><option value="9" selected>9</option><option value="X">X (10)</option><option value="U">U (Unter)</option>
                 </select>
             </div>
-             <div class="slider-group">
-                <label for="consider-sau-if-planned-checkbox-others">Consider "4 auf die Sau" if Planned:</label>
+            <div class="strategy-row">
+                <input type="checkbox" id="consider-sau-if-planned-checkbox-p1" checked>
+                <label>Consider "4 auf die Sau" if Planned</label>
                 <input type="checkbox" id="consider-sau-if-planned-checkbox-others" checked>
             </div>
-
         </div>
+
 
         <!-- Simulation Run Controls Section -->
         <div id="simulation-controls-section" class="simulation-section">

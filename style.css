@@ -606,3 +606,59 @@ body {
     text-shadow: 1px 1px 1px #000;
     pointer-events: none;
 }
+
+/* ADD THESE STYLES TO THE END OF style.css */
+
+.strategy-row-header {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr; /* 3 columns: P0 | Label | Others */
+    gap: 20px;
+    align-items: center;
+    width: 100%;
+}
+.strategy-row-header h4 {
+    margin: 5px 0;
+    text-align: center;
+}
+.strategy-row-header h4:first-child {
+    text-align: left;
+}
+.strategy-row-header h4:last-child {
+    text-align: right;
+}
+
+.strategy-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr; /* 3 columns: P0 | Label | Others */
+    gap: 20px;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.strategy-row label {
+    text-align: center;
+    font-size: 0.9em;
+    color: #ccc;
+    justify-self: center;
+}
+
+.strategy-row input[type="checkbox"],
+.strategy-row select {
+    justify-self: center; /* Center these controls within their column */
+}
+
+/* This container ensures the range slider and its value display stay together */
+.slider-with-value {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-self: stretch; /* Make it fill its column */
+}
+.slider-with-value input[type="range"] {
+    flex-grow: 1;
+}
+.slider-with-value .value-display {
+    min-width: 25px;
+    text-align: right;
+}
