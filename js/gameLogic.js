@@ -87,6 +87,7 @@ export class Player {
         this.cardsToDiscard = []; // Store cards chosen for discard
         this.lastActionLog = ''; // Reset action log
         this.hasSauWeli = false; 
+        this.aiPlan = {}; // reset AI strategy plan -> clear up space, especially for simulation
     }
 
     addCards(cards) {

@@ -1,3 +1,4 @@
+
 import { GameState, GameRules, Card, Deck } from './gameLogic.js';
 import { aiDecideBid, aiDecideExchange, aiDecideCardToPlay, aiDecideCardToDiscard } from './aiPlayer.js';
 import { renderGame, animateCardMovement, getElementCoordinates } from './uiRenderer.js';
@@ -12,9 +13,15 @@ let currentDealerAnte = 1.0;
 let currentMuasPenalty = 1.0;
 let currentAnimationSpeed = 0.5;
 
+
 const defaultStrategy = {
     bidStage1: { minCompanionTrumpValueForSneak: "X", soloTrumpAceSneakChance: 0.3, minTrumpForOderMit: "9", alwaysSneakIfLastAndNoBid: true },
-    bidStage2: { minTrumpValueToPlayWithSneaker: "9", lowTrumpPlayChanceWithSneaker: 0.3, minSuitValueForOderPlay: "U", playIfLastNoOneJoined: true },
+    bidStage2: {
+        minHandValueToPlayWithSneaker: 8,
+        minHandValueToPlayWithOderer: 10,
+        lowTrumpPlayChanceWithSneaker: 0.3, // This is currently unused by the new logic, but can be kept for future ideas
+        playIfLastNoOneJoined: true // This is currently unused by the new logic, but can be kept for future ideas
+    },
     exchange: { maxTrumpValueForTrumpfPackerl: "9", considerSauIfPlanned: true }
 };
 
@@ -523,6 +530,9 @@ async function moveToNextBidder(stage, currentGameState) {
     await resolveBiddingStageEnd(stage, currentGameState);
 }
 
+
+
+
 async function resolveBiddingStageEnd(stage, currentGameState) {
     if (!isSimulationRunning) logMessage(`Resolving end of ${stage}.`);
     if (stage === GAME_PHASE.BIDDING_STAGE_1) {
@@ -543,44 +553,56 @@ async function resolveBiddingStageEnd(stage, currentGameState) {
         currentGameState.players.forEach(p => p.hasBid = false); // Reset for next phase
         const activePlayersList = getActivePlayerOrder(currentGameState);
 
-        if (currentGameState.oderPlayer) {
-            const odererIsStillTheDeclarer = currentGameState.oderPlayer;
-            const activePartners = activePlayersList.filter(p => p !== odererIsStillTheDeclarer && p.status === PLAYER_STATUS.ACTIVE_PLAYER);
-            const odererStrategy = getStrategyForPlayer(odererIsStillTheDeclarer);
-            const odererPlaysAloneByChoice = (odererIsStillTheDeclarer.id === 0 && isManualBiddingMode) // Check if P0 chose to play alone
-                                           ? (activePartners.length === 0) // P0 specific logic for playing alone would be set here
-                                           : (odererStrategy.bidStage2.playIfLastNoOneJoined && activePartners.length === 0);
 
-            if (odererIsStillTheDeclarer.status !== PLAYER_STATUS.FOLDED && (activePartners.length > 0 || odererPlaysAloneByChoice)) {
-                if (!isSimulationRunning) logMessage(`Oder by ${odererIsStillTheDeclarer.name} proceeds with ${activePartners.length} partner(s)${odererPlaysAloneByChoice && activePartners.length === 0 ? " (playing alone)" : ""}. Resolving Oder...`);
-                currentGameState.sneaker = odererIsStillTheDeclarer;
+        if (currentGameState.oderPlayer) {
+            // Handle the Oder game outcome first.
+            const oderer = currentGameState.oderPlayer;
+            const partners = activePlayersList.filter(p => p.status === PLAYER_STATUS.ACTIVE_PLAYER);
+            
+            // Check if the Oder game is successful (has partners)
+            if (partners.length > 0) {
+                if (!isSimulationRunning) logMessage(`Oder by ${oderer.name} proceeds with ${partners.length} partner(s). Resolving Oder...`);
+                
+                //Promote the Oderer to be the Sneaker
+                currentGameState.sneaker = oderer;
                 currentGameState.sneaker.status = PLAYER_STATUS.ACTIVE_SNEAKER;
+                
+                // Now proceed to the Oder resolution phase
                 currentGameState.phase = GAME_PHASE.RESOLVE_ODER;
+
             } else {
-                if (!isSimulationRunning) logMessage(`Oder by ${odererIsStillTheDeclarer.name} does not proceed. Scoring.`);
+                // Oder game fails (no partners)
+                if (!isSimulationRunning) logMessage(`Oder by ${oderer.name} does not proceed (no partners). Scoring.`);
                 currentGameState.phase = GAME_PHASE.SCORING;
             }
+
         } else if (currentGameState.sneaker) {
+            // This block handles a standard Sneak game (not from an Oder)
             if (activePlayersList.length === 1 && activePlayersList[0] === currentGameState.sneaker) {
+                // UNCONTESTED WIN
                 if (!isSimulationRunning) logMessage(`${currentGameState.sneaker.name} wins uncontested! Scoring...`);
                 currentGameState.roundWinner = currentGameState.sneaker;
                 currentGameState.sneaker.tricksWonThisRound = 4;
                 currentGameState.phase = GAME_PHASE.SCORING;
             } else if (activePlayersList.length > 1) {
-                if (!isSimulationRunning) logMessage("Bidding Stage 2 complete (Sneaker game). Proceeding to Exchange.");
+                // GAME CONTINUES
+                if (!isSimulationRunning) logMessage("Bidding Stage 2 complete. Proceeding to Exchange.");
                 currentGameState.activePlayerOrder = activePlayersList;
                 currentGameState.phase = GAME_PHASE.EXCHANGE;
                 currentGameState.turnPlayerIndex = currentGameState.sneaker.id;
             } else {
-                if (!isSimulationRunning) logMessage(`Sneaker ${currentGameState.sneaker.name} has no partners. Scoring.`);
+                // NO ACTIVE PLAYERS (e.g. Sneaker folded, which is an error state)
+                if (!isSimulationRunning) logMessage(`Bidding ended with no active players. Scoring.`);
                 currentGameState.phase = GAME_PHASE.SCORING;
             }
         } else {
-            if (!isSimulationRunning) logMessage("All players bid Weiter in Stage 1. Applying penalty.");
+            if (!isSimulationRunning) logMessage("All players bid Weiter. Applying penalty.");
             currentGameState.phase = GAME_PHASE.ALL_WEITER_PENALTY;
         }
     }
 }
+
+
 
 async function startNewRound() {
     if (!isSimulationRunning) {
@@ -1799,85 +1821,97 @@ export async function handleUserBid(chosenBid) {
 }
 
 
-async function playFullGameSilently() {
-    gameState.isWaitingForBidInput = false; gameState.isAnimating = false;
-    gameState.isWaitingForManualDiscardSelection = false;
-    gameState.isWaitingForManualExchangeChoice = false;
-    gameState.isWaitingForManualExchangeCardSelection = false;
-    gameState.isWaitingForManualPlay = false;
 
-    let safetyBreak = 0; const MAX_STEPS_PER_GAME = 700;
-    while (gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP && safetyBreak < MAX_STEPS_PER_GAME) {
-        safetyBreak++; const phaseBefore = gameState.phase; const turnPlayerBefore = gameState.turnPlayerIndex;
-        try {
-            switch (gameState.phase) {
-                case GAME_PHASE.ANTE: processAnte(); break;
-                case GAME_PHASE.DEALING: await processDealingStep(); break;
-                case GAME_PHASE.DEALER_DISCARD: await processDealerDiscardStep(); break;
-                case GAME_PHASE.BIDDING_STAGE_1: await processBiddingStep(GAME_PHASE.BIDDING_STAGE_1); break;
-                case GAME_PHASE.RESOLVE_ODER: await processOderResolution(); break;
-                case GAME_PHASE.BIDDING_STAGE_2: await processBiddingStep(GAME_PHASE.BIDDING_STAGE_2); break;
-                case GAME_PHASE.EXCHANGE_PREP: await processOderDiscardStep(); break;
-                case GAME_PHASE.EXCHANGE: await processExchangeStep(); break;
-                case GAME_PHASE.FINAL_DISCARD: await processFinalDiscardStep(); break;
-                case GAME_PHASE.PLAYING_TRICKS: await processPlayCardStep(); break;
-                case GAME_PHASE.TRICK_END: await processTrickEndStep(); break;
-                case GAME_PHASE.ALL_WEITER_PENALTY: processAllWeiterPenalty(); break;
-                case GAME_PHASE.SCORING: processScoringStep(); break;
-                default: gameState.phase = GAME_PHASE.ROUND_END;
-            }
-        } catch (error) { console.error(`SIM Error in ${phaseBefore}: ${error.message}`, error.stack); gameState.phase = GAME_PHASE.ROUND_END; }
-        if (gameState.phase === phaseBefore && gameState.turnPlayerIndex === turnPlayerBefore && gameState.phase !== GAME_PHASE.ROUND_END && gameState.turnPlayerIndex !== -1) {
-            console.warn(`SIM: Game stuck in phase ${gameState.phase}, player ${gameState.turnPlayerIndex}. Forcing end.`);
+// --- UNIFIED SIMULATION LOGIC ---
+// This function runs a single, complete game round using the main async logic.
+async function runSingleSimulationRound() {
+    // Await startNewRound to ensure the game state is fully reset for the round.
+    await startNewRound();
+
+    let safetyBreak = 0;
+    const MAX_STEPS = 100; // A single game should never take this many logical steps.
+
+    // This async while loop correctly drives the game's state machine.
+    while (gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP && safetyBreak < MAX_STEPS) {
+        safetyBreak++;
+        const phaseBeforeStep = gameState.phase;
+
+        // By awaiting nextStep(), we ensure each logical step (dealing, bidding, playing)
+        // fully completes before the while loop continues. This maintains the integrity
+        // of the state machine while running at maximum speed because animations are skipped.
+        await nextStep();
+
+        // This check helps catch issues where a phase doesn't transition correctly.
+        if (gameState.phase === phaseBeforeStep && gameState.phase !== GAME_PHASE.ROUND_END) {
+            console.warn(`SIM: Game stuck in phase ${gameState.phase}. Forcing end.`);
             gameState.phase = GAME_PHASE.ROUND_END;
         }
     }
-    if (safetyBreak >= MAX_STEPS_PER_GAME) {
-        console.warn(`SIM: Max steps per game reached. Forcing scoring/end. Phase: ${gameState.phase}`);
-        if (gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SCORING) processScoringStep();
-        gameState.phase = GAME_PHASE.ROUND_END;
+
+    if (safetyBreak >= MAX_STEPS) {
+        console.warn(`SIM: Max steps per game reached. Phase: ${gameState.phase}`);
+        // Ensure scoring happens if the game is forced to end.
+        if (gameState.phase !== GAME_PHASE.ROUND_END) {
+            processScoringStep();
+        }
     }
 }
 
 export async function runBatchSimulation(numGames, progressCallback) {
-    isSimulationRunning = true;
-    logMessage(`Starting batch simulation for ${numGames} games... (UI updates disabled)`);
+    isSimulationRunning = true; // Set the global flag to disable UI updates and animations
+    isManualBiddingMode = false; // Ensure manual mode is off for simulation
+    logMessage(`Starting batch simulation for ${numGames} games...`);
 
     const aggregatedPlayerPoints = Array(PLAYER_COUNT).fill(0);
-    const playerNames = gameState ? gameState.players.map(p => p.name) : Array(PLAYER_COUNT).fill(null).map((_,i) => `P${i}`);
+    const playerNames = gameState ? gameState.players.map(p => p.name) : Array(PLAYER_COUNT).fill(null).map((_, i) => `P${i}`);
     let gamesSuccessfullyCompleted = 0;
+    // Store the UI's current point totals so we can restore them after the simulation.
     const initialUiPlayerPoints = gameState ? gameState.players.map(p => p.points) : Array(PLAYER_COUNT).fill(0);
 
+    // Give the browser a moment to update the UI before the intensive loop
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const startTime = performance.now();
+
     for (let i = 0; i < numGames; i++) {
-        initializeGame(true); // isForSimulation = true
-        await startNewRound();
-        await playFullGameSilently();
+        // --- FIX for "0 Points" Bug ---
+        // Before each simulated game, reset the points in the gameState to 0.
+        // This ensures that after the round, player.points holds the score for *only that round*.
+        if (gameState && gameState.players) {
+            gameState.players.forEach(p => p.points = 0);
+        }
+
+        // Await the now-async simulation round function.
+        await runSingleSimulationRound();
 
         if (gameState.phase === GAME_PHASE.ROUND_END) {
             gamesSuccessfullyCompleted++;
+            // Now, add the single-round score to our persistent aggregate.
             gameState.players.forEach((player, index) => {
                 aggregatedPlayerPoints[index] += player.points;
                 if (!playerNames[index] && player.name) playerNames[index] = player.name;
             });
         }
 
-        if (progressCallback) {
-            const percentComplete = ((i + 1) / numGames) * 100;
-            await new Promise(resolve => setTimeout(resolve, 0));
-            progressCallback(percentComplete);
-        }
-
-        if ((i + 1) % Math.max(1, Math.floor(numGames / 20)) === 0 || i + 1 === numGames) {
-             // Only log final completion in silent sim to avoid spam
-             if ( (i+1) === numGames) logMessage(`SIM: Completed ${i + 1} / ${numGames} games...`);
+        // Update the progress bar periodically
+        if ((i + 1) % 1000 === 0 || (i + 1) === numGames) {
+            if (progressCallback) {
+                const percentComplete = ((i + 1) / numGames) * 100;
+                await new Promise(resolve => setTimeout(resolve, 0)); // Yield to browser
+                progressCallback(percentComplete);
+            }
         }
     }
 
-    isSimulationRunning = false;
-    logMessage(`Batch simulation finished. ${gamesSuccessfullyCompleted}/${numGames} games completed successfully.`);
+    const endTime = performance.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(2);
+    logMessage(`Batch simulation finished in ${duration} seconds. ${gamesSuccessfullyCompleted}/${numGames} games completed successfully.`);
 
-    initializeGame(false); // Re-initialize for UI play
-    if (gameState && initialUiPlayerPoints) { // Restore pre-simulation points for UI players
+    isSimulationRunning = false; // Unset the flag
+
+    // Re-initialize the game for UI play and restore the original scores.
+    initializeGame(false);
+    if (gameState && initialUiPlayerPoints) {
         gameState.players.forEach((p, idx) => p.points = initialUiPlayerPoints[idx]);
         renderGame(gameState);
     }

@@ -4,7 +4,7 @@ import {
     setDealerAnte,
     setMuasPenalty,
     updateStrategyParameter,
-    setAnimationSpeed, // This function still expects seconds
+    setAnimationSpeed,
     runBatchSimulation,
     toggleOtherPlayersCardVisibility
 } from './controller.js';
@@ -12,7 +12,7 @@ import {
 import { RANKS, SUITS, WELI_RANK, WELI_SUIT, getCardImageFilename } from './constants.js';
 import { logMessage } from './logger.js';
 
-// --- NEW: Preload all card images for smoother animations ---
+// --- Preload all card images for smoother animations ---
 async function preloadCardImages() {
     logMessage("Preloading card images...");
     const allCardsToLoad = [];
@@ -52,31 +52,23 @@ async function preloadCardImages() {
 function mapVirtualSpeedToSeconds(virtualSpeed) {
     // virtualSpeed is 1 to 10
     // We want 1 -> 0.5s (slowest), 10 -> 0.1s (fastest)
-    // This is a linear interpolation.
-    // y = y_max - ( (x - x_min) * (y_max - y_min) ) / (x_max - x_min)
-    // x = virtualSpeed
-    // x_min = 1, y_max_seconds = 0.5 (seconds for slowest speed)
-    // x_max = 10, y_min_seconds = 0.1 (seconds for fastest speed)
-
     const minVirtualSpeed = 1;
     const maxVirtualSpeed = 10;
     const maxSeconds = 0.5; // Corresponds to minVirtualSpeed
     const minSeconds = 0.1; // Corresponds to maxVirtualSpeed
 
-    // Ensure virtualSpeed is within bounds for calculation, though slider should enforce this
     const clampedVirtualSpeed = Math.max(minVirtualSpeed, Math.min(maxVirtualSpeed, virtualSpeed));
 
-    if (maxVirtualSpeed === minVirtualSpeed) return maxSeconds; // Avoid division by zero if range is 1
+    if (maxVirtualSpeed === minVirtualSpeed) return maxSeconds;
 
     const seconds = maxSeconds - ( (clampedVirtualSpeed - minVirtualSpeed) * (maxSeconds - minSeconds) ) / (maxVirtualSpeed - minVirtualSpeed);
-    return parseFloat(seconds.toFixed(2)); // Return as number with 2 decimal places
+    return parseFloat(seconds.toFixed(2));
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Loaded. Initializing Simulation.");
 
-        // --- NEW: Call the preload function ---
-        await preloadCardImages();
+    await preloadCardImages();
 
     const animationSpeedSlider = document.getElementById('animation-speed-slider');
     const animationSpeedValueSpan = document.getElementById('animation-speed-value');
@@ -99,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (isFloat) {
             initialValue = parseFloat(inputElement.value);
         } else {
-            initialValue = parseInt(inputElement.value, 10); // Default to int for range sliders not marked float
+            initialValue = parseInt(inputElement.value, 10);
         }
 
         if (valueDisplayElement && !isCheckbox && !isSelect) {
@@ -137,13 +129,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (animationSpeedSlider && animationSpeedValueSpan) {
         const initialVirtualSpeed = parseInt(animationSpeedSlider.value, 10);
-        animationSpeedValueSpan.textContent = initialVirtualSpeed.toString(); // Display virtual speed (1-10)
+        animationSpeedValueSpan.textContent = initialVirtualSpeed.toString();
         const initialSeconds = mapVirtualSpeedToSeconds(initialVirtualSpeed);
         setAnimationSpeed(initialSeconds); 
 
         animationSpeedSlider.addEventListener('input', () => {
             const virtualSpeed = parseInt(animationSpeedSlider.value, 10);
-            animationSpeedValueSpan.textContent = virtualSpeed.toString(); // Display virtual speed (1-10)
+            animationSpeedValueSpan.textContent = virtualSpeed.toString();
             const seconds = mapVirtualSpeedToSeconds(virtualSpeed);
             setAnimationSpeed(seconds);
         });
@@ -180,22 +172,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // P0 Strategy Setup
     setupStrategyControl('min-companion-trump-value-select-p1', null, 'player1', 'bidStage1', 'minCompanionTrumpValueForSneak', false, false, true);
     setupStrategyControl('min-trump-oder-mit-select-p1', null, 'player1', 'bidStage1', 'minTrumpForOderMit', false, false, true);
-    
-    // --- UPDATED P0 BID STAGE 2 CONTROLS ---
     setupStrategyControl('min-hand-value-play-sneaker-slider-p1', 'min-hand-value-play-sneaker-value-p1', 'player1', 'bidStage2', 'minHandValueToPlayWithSneaker', false, false, false);
-    setupStrategyControl('play-if-last-no-one-joined-checkbox-p1', null, 'player1', 'bidStage2', 'playIfLastNoOneJoined', true, false, false);
-
+    setupStrategyControl('min-hand-value-play-oderer-slider-p1', 'min-hand-value-play-oderer-value-p1', 'player1', 'bidStage2', 'minHandValueToPlayWithOderer', false, false, false);
     setupStrategyControl('max-trump-value-trumpfpackerl-select-p1', null, 'player1', 'exchange', 'maxTrumpValueForTrumpfPackerl', false, false, true);
     setupStrategyControl('consider-sau-if-planned-checkbox-p1', null, 'player1', 'exchange', 'considerSauIfPlanned', true, false, false);
     
     // Others Strategy Setup
     setupStrategyControl('min-companion-trump-value-select-others', null, 'otherPlayers', 'bidStage1', 'minCompanionTrumpValueForSneak', false, false, true);
     setupStrategyControl('min-trump-oder-mit-select-others', null, 'otherPlayers', 'bidStage1', 'minTrumpForOderMit', false, false, true);
-
-    // --- UPDATED OTHERS BID STAGE 2 CONTROLS ---
     setupStrategyControl('min-hand-value-play-sneaker-slider-others', 'min-hand-value-play-sneaker-value-others', 'otherPlayers', 'bidStage2', 'minHandValueToPlayWithSneaker', false, false, false);
-    setupStrategyControl('play-if-last-no-one-joined-checkbox-others', null, 'otherPlayers', 'bidStage2', 'playIfLastNoOneJoined', true, false, false);
-
+    setupStrategyControl('min-hand-value-play-oderer-slider-others', 'min-hand-value-play-oderer-value-others', 'otherPlayers', 'bidStage2', 'minHandValueToPlayWithOderer', false, false, false);
     setupStrategyControl('max-trump-value-trumpfpackerl-select-others', null, 'otherPlayers', 'exchange', 'maxTrumpValueForTrumpfPackerl', false, false, true);
     setupStrategyControl('consider-sau-if-planned-checkbox-others', null, 'otherPlayers', 'exchange', 'considerSauIfPlanned', true, false, false);
 
@@ -285,11 +271,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (p > maxPoint) maxPoint = p; 
         });
 
-        const dataAbsMax = Math.max(Math.abs(minPoint), Math.abs(maxPoint)); // Max deviation from zero
-        const chartHeight = 200; // Total height available for bars
-        const zeroLinePosition = (dataAbsMax + minPoint) / (2 * dataAbsMax) * chartHeight; // Position of the zero line from bottom if dataAbsMax != 0
+        const dataAbsMax = Math.max(Math.abs(minPoint), Math.abs(maxPoint));
+        const chartHeight = 200;
+        const zeroLinePosition = (dataAbsMax + minPoint) / (2 * dataAbsMax) * chartHeight;
         const effectiveZeroLine = (dataAbsMax === 0) ? chartHeight / 2 : zeroLinePosition;
-
 
         points.forEach((point, index) => {
             const barContainer = document.createElement('div'); 
@@ -304,19 +289,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             bar.classList.add(`bar-p${index}`);
 
             let barHeight;
-            if (dataAbsMax === 0) { // All points are zero
-                barHeight = 1; // Minimal height for zero bar
-                bar.style.bottom = `${effectiveZeroLine - 1}px`; // Center it
+            if (dataAbsMax === 0) {
+                barHeight = 1;
+                bar.style.bottom = `${effectiveZeroLine - 1}px`;
             } else {
-                barHeight = (Math.abs(point) / dataAbsMax) * (chartHeight / 2); // Height relative to half chart height
-                barHeight = Math.max(1, barHeight); // Ensure minimum visible height
+                barHeight = (Math.abs(point) / dataAbsMax) * (chartHeight / 2);
+                barHeight = Math.max(1, barHeight);
                 if (point >= 0) {
                     bar.style.bottom = `${effectiveZeroLine}px`;
-                    bar.style.backgroundColor = '#5cb85c'; // Green for positive
+                    bar.style.backgroundColor = '#5cb85c';
                     bar.style.borderColor = '#4cae4c';
                 } else {
                     bar.style.bottom = `${effectiveZeroLine - barHeight}px`;
-                    bar.style.backgroundColor = '#d9534f'; // Red for negative
+                    bar.style.backgroundColor = '#d9534f';
                     bar.style.borderColor = '#d43f3a';
                 }
             }
@@ -331,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             barContainer.appendChild(barLabel); 
             barChartArea.appendChild(barContainer);
         });
-         // Add a zero line if the range includes negative and positive values or just for reference
+
         if (minPoint < 0 && maxPoint > 0 || (minPoint === 0 && maxPoint === 0) || (dataAbsMax > 0)) {
             const zeroLine = document.createElement('div');
             zeroLine.style.position = 'absolute';
@@ -339,9 +324,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             zeroLine.style.right = '0';
             zeroLine.style.bottom = `${effectiveZeroLine}px`;
             zeroLine.style.height = '1px';
-            zeroLine.style.backgroundColor = '#aaa'; // Color of the zero line
-            zeroLine.style.zIndex = '0'; // Behind bars if needed, or adjust
+            zeroLine.style.backgroundColor = '#aaa';
+            zeroLine.style.zIndex = '0';
             barChartArea.appendChild(zeroLine);
         }
     }
+
+    // --- ADDED: Event listener for Spacebar control ---
+    document.addEventListener('keydown', (event) => {
+        // First, check if the user is currently focused on an input field.
+        const activeElement = document.activeElement;
+        if (activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
+            return; // Do nothing, let the user type a space.
+        }
+
+        // Check if the pressed key is the Spacebar.
+        if (event.code === 'Space') {
+            // Prevent the browser's default action (scrolling).
+            event.preventDefault();
+
+            // Find the dynamically created "Next Step" or "Start New Round" button.
+            const nextStepButton = document.getElementById('dynamic-next-step');
+
+            // If the button exists and is not disabled, trigger its click event.
+            if (nextStepButton && !nextStepButton.disabled) {
+                nextStepButton.click();
+            }
+        }
+    });
 });

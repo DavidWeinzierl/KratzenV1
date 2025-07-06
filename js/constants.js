@@ -35,7 +35,7 @@ export function getCardValue(card, trumpSuit) {
 
 // Player Statuses
 export const PLAYER_STATUS = {
-    WAITING: 'waiting',
+    WAITING: '...',
     ACTIVE_SNEAKER: 'Schlager',
     ACTIVE_PLAYER: 'Mitgeher',
     FOLDED: 'folded', // CHANGED FROM PASSED

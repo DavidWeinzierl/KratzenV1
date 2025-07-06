@@ -662,3 +662,30 @@ body {
     min-width: 25px;
     text-align: right;
 }
+
+
+
+/* Make the trump display a positioning context for the stacked cards.
+   Adjust min-width to ensure the offset card fits without being clipped. */
+   #trump-card-display {
+    position: relative;
+    min-width: 120px; 
+}
+
+/* Base style for any card that will be part of the stack */
+.trump-card-stacked {
+    position: absolute;
+    top: 0;
+}
+
+/* Style for the bottom card (the Weli) */
+.trump-card-stacked.bottom-card {
+    left: 0;
+    z-index: 1; /* Ensures it's below the top card */
+}
+
+/* Style for the top card (the actual trump determiner) */
+.trump-card-stacked.top-card {
+    left: 20%; /* The requested 20% offset to the right */
+    z-index: 2; /* Ensures it's on top of the bottom card */
+}

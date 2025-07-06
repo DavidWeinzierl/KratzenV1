@@ -108,33 +108,23 @@ function _sortCardsByValue(cards, trumpSuit, ascending = true) {
 
 
 export function decideExchange(player, validExchangeOptions, trumpSuit, gameState, config) {
-    // This is the best possible exchange, so it should always be taken.
-    const sauOption = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.SAU);
-    if (sauOption) {
-        logMessage(`AI (${player.name}): Strategy Exchange - "4 auf die Sau" is available and mandatory. Choosing SAU.`);
-        return { type: EXCHANGE_TYPE.SAU, cardsToDiscard: [] }; // Sau discards all but Ace Trump
-    }
-
-
+    // --- PRE-CALCULATIONS AND CHECKS ---
     const hasWeli = _hasCard(player, WELI_RANK);
     const trumpCardsInHand = _getTrumpCards(player, trumpSuit);
     const numTrumps = trumpCardsInHand.length;
 
-
+    //  DETECT IF A PREVIOUS PLAYER DISCARDED ZERO CARDS ---
     let anyPreviousPlayerDiscardedZero = false;
     if (gameState.activePlayerOrder && gameState.activePlayerOrder.length > 0) {
         const currentPlayerIndexInOrder = gameState.activePlayerOrder.findIndex(p => p.id === player.id);
         if (currentPlayerIndexInOrder > 0) { // Only check if not the first player to exchange
             for (let i = 0; i < currentPlayerIndexInOrder; i++) {
                 const previousPlayer = gameState.activePlayerOrder[i];
-                // Check if previousPlayer has taken their exchange turn and chose STANDARD with 0 discards.
-                // `player.exchangeAction` and `player.lastActionLog` are set in controller.js.
-                // A more direct way would be to check how many cards they actually discarded if that info was stored.
-                // For now, rely on the log and action type.
-                if (previousPlayer.hasBid && // Indicates they've taken their exchange turn
+                // Check if the previous player has completed their standard exchange and discarded 0.
+                if (previousPlayer.hasBid && // 'hasBid' is used to mark a completed turn in this phase
                     previousPlayer.exchangeAction === EXCHANGE_TYPE.STANDARD &&
                     previousPlayer.lastActionLog &&
-                    (previousPlayer.lastActionLog.includes("discarded 0") || previousPlayer.lastActionLog.includes("Exchanged, discarded 0"))) {
+                    previousPlayer.lastActionLog.includes("Kauft 0")) { // Check the log for the specific action
                     anyPreviousPlayerDiscardedZero = true;
                     logMessage(`AI (${player.name}): Detected ${previousPlayer.name} previously discarded 0 cards. Non-trump aces are now less valuable.`);
                     break;
@@ -143,107 +133,80 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
         }
     }
 
-
-    // 1. Prioritize AI Plans (Sau, Packerl if last join)
-    if (player.aiPlan && player.aiPlan.intendSau && config.exchange.considerSauIfPlanned) {
-        const sauOptionFromPlan = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.SAU);
-        if (sauOptionFromPlan) {
-            logMessage(`AI (${player.name}): Strategy Exchange - Intended "4 auf die Sau" & option valid. Choosing SAU.`);
-            return { type: EXCHANGE_TYPE.SAU, cardsToDiscard: [] }; // Sau discards all but Ace Trump
-        }
+    // --- PRIORITY 1: MANDATORY/BEST EXCHANGES ---
+    // "4 auf die Sau" is always the best move.
+    const sauOption = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.SAU);
+    if (sauOption) {
+        logMessage(`AI (${player.name}): Strategy Exchange - "4 auf die Sau" is available. Choosing SAU.`);
+        return { type: EXCHANGE_TYPE.SAU, cardsToDiscard: [] };
     }
-    if (player.aiPlan && player.aiPlan.intendPackerlIfLastJoin) {
-        // Packerl because last to join a game (e.g. Sneaker)
-        if (numTrumps === 0 && validExchangeOptions.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL)) {
-            logMessage(`AI (${player.name}): Strategy Exchange - Intended Packerl (last join), no trumps. Choosing NORMAL_PACKERL.`);
-            return { type: EXCHANGE_TYPE.NORMAL_PACKERL, cardsToDiscard: [] }; // Packerl discards whole hand
-        }
-        const isLowSingleTrump = numTrumps === 1 && !hasWeli && trumpCardsInHand[0] &&
-            RANKS.indexOf(trumpCardsInHand[0].rank) <= RANKS.indexOf(config.exchange.maxTrumpValueForTrumpfPackerl);
-        if (isLowSingleTrump && validExchangeOptions.some(opt => opt.type === EXCHANGE_TYPE.TRUMPF_PACKERL)) {
-            logMessage(`AI (${player.name}): Strategy Exchange - Intended Packerl (last join), low single trump. Choosing TRUMPF_PACKERL.`);
-            return { type: EXCHANGE_TYPE.TRUMPF_PACKERL, cardsToDiscard: [] }; // Packerl discards whole hand
+
+    // --- PRIORITY 2: OPPORTUNISTIC PACKERL (Based on current hand) ---
+    // Trumpf-Packerl: No Weli, single low trump.
+    const canDoTrumpfPackerl = validExchangeOptions.some(opt => opt.type === EXCHANGE_TYPE.TRUMPF_PACKERL);
+    if (canDoTrumpfPackerl && !hasWeli && numTrumps === 1) {
+        const isLowTrump = RANKS.indexOf(trumpCardsInHand[0].rank) <= RANKS.indexOf(config.exchange.maxTrumpValueForTrumpfPackerl);
+        if (isLowTrump) {
+            logMessage(`AI (${player.name}): Strategy Exchange - Has one low trump. Choosing TRUMPF_PACKERL.`);
+            return { type: EXCHANGE_TYPE.TRUMPF_PACKERL, cardsToDiscard: [] };
         }
     }
 
-    // 2. Evaluate Packerl options based on hand (if not already chosen due to AI plan)
-    // Trumpf-Packerl: No Weli, single low trump
-    if (!hasWeli && numTrumps === 1 && trumpCardsInHand[0] &&
-        RANKS.indexOf(trumpCardsInHand[0].rank) <= RANKS.indexOf(config.exchange.maxTrumpValueForTrumpfPackerl) &&
-        validExchangeOptions.some(opt => opt.type === EXCHANGE_TYPE.TRUMPF_PACKERL)) {
-        logMessage(`AI (${player.name}): Strategy Exchange - No Weli, single low trump. Choosing TRUMPF_PACKERL.`);
-        return { type: EXCHANGE_TYPE.TRUMPF_PACKERL, cardsToDiscard: [] };
+    // Normales-Packerl: No Trumps. (This check is for the initial hand state).
+    const canDoNormalPackerl = validExchangeOptions.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL);
+    if (canDoNormalPackerl && numTrumps === 0) {
+        logMessage(`AI (${player.name}): Strategy Exchange - Has no trumps. Choosing NORMAL_PACKERL.`);
+        return { type: EXCHANGE_TYPE.NORMAL_PACKERL, cardsToDiscard: [] };
     }
-    // Normales-Packerl: No Trumps or Weli
-    // If previous player discarded zero, and AI now has no trumps (after potentially deciding to discard aces),
-    // it might become eligible for Normales Packerl. This re-evaluation happens after Standard logic.
-    let canConsiderNormalPackerlAfterAceDiscard = false;
 
 
-    // 3. Standard Exchange (Default, but with modified Ace logic)
+    // --- PRIORITY 3: STANDARD EXCHANGE (with intelligent discard and Packerl re-evaluation) ---
     const standardOption = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.STANDARD);
     if (standardOption) {
         let cardsToKeep = [];
-        // Always keep trumps and Weli
-        player.hand.forEach(card => {
-            if ((trumpSuit && card.suit === trumpSuit) || card.rank === WELI_RANK) {
-                cardsToKeep.push(card);
-            }
-        });
+        // Always keep trumps.
+        cardsToKeep.push(...trumpCardsInHand);
 
-        // Handle Non-Trump Aces
-        let nonTrumpAcesInHand = _getNonTrumpAces(player, trumpSuit);
-        if (anyPreviousPlayerDiscardedZero) {
-            // If a previous player discarded zero, DO NOT keep any non-trump aces by default.
-            // They will be added to potentialDiscards unless they are the only cards.
-            logMessage(`AI (${player.name}): Previous player discarded 0. Not prioritizing keeping non-trump aces.`);
-        } else if (nonTrumpAcesInHand.length > 0) {
-            // Keep the single best non-trump Ace if multiple exist, or the only one if one exists.
-            const sortedNonTrumpAces = _sortCardsByValue(nonTrumpAcesInHand, null, false); // Sort descending, null trump
-            cardsToKeep.push(sortedNonTrumpAces[0]); // Keep the best one
-            // Other non-trump aces will fall into potentialDiscards.
+        // --- MODIFIED ACE LOGIC ---
+        // Only consider keeping non-trump aces if no one has signaled strength.
+        if (!anyPreviousPlayerDiscardedZero) {
+            let nonTrumpAces = _getNonTrumpAces(player, trumpSuit);
+            if (nonTrumpAces.length > 0) {
+                // Keep only the single best non-trump Ace.
+                const sortedAces = _sortCardsByValue(nonTrumpAces, null, false); // Sort descending
+                cardsToKeep.push(sortedAces[0]);
+            }
+        } else {
+            logMessage(`AI (${player.name}): Opponent discarded 0, so non-trump aces will not be prioritized.`);
         }
 
-        // Determine cards to discard for standard exchange
+        // Determine cards to discard for a standard exchange.
         let potentialDiscards = player.hand.filter(card => !cardsToKeep.some(k => k.key === card.key));
-        // Sort potential discards: lowest value first (non-trumps, then low trumps if forced)
-        potentialDiscards = _sortCardsByValue(potentialDiscards, trumpSuit, true);
+        potentialDiscards = _sortCardsByValue(potentialDiscards, trumpSuit, true); // Sort lowest value first
 
-        let cardsToDiscardForStandard = [];
-        const maxDiscardCount = Math.min(standardOption.maxCards || 4, Math.max(0, player.hand.length - 1)); // Must keep at least 1 card
+        const maxDiscardCount = Math.min(standardOption.maxCards || 4, player.hand.length - 1); // Must keep at least 1 card
+        const cardsToDiscardForStandard = potentialDiscards.slice(0, maxDiscardCount);
 
-        for (let i = 0; i < potentialDiscards.length && cardsToDiscardForStandard.length < maxDiscardCount; i++) {
-            // Ensure we don't discard down to zero cards if player.hand.length - cardsToDiscardForStandard.length would be 0
-            if ((player.hand.length - cardsToDiscardForStandard.length) > 1) {
-                 cardsToDiscardForStandard.push(potentialDiscards[i]);
-            } else {
-                break; // Stop if adding this card would leave 0 or 1 card and we need to keep more
-            }
+        // --- NEW: RE-EVALUATE FOR PACKERL ---
+        // If we decided to discard our non-trump aces, does that now make a Packerl possible?
+        const tempHandAfterStandardDiscard = player.hand.filter(c => !cardsToDiscardForStandard.some(d => d.key === c.key));
+        const trumpsInTempHand = _getTrumpCards({ hand: tempHandAfterStandardDiscard }, trumpSuit).length;
+
+        if (trumpsInTempHand === 0 && canDoNormalPackerl) {
+            logMessage(`AI (${player.name}): Strategy Exchange - After considering standard discard, now has 0 trumps. Overriding to choose NORMAL_PACKERL.`);
+            return { type: EXCHANGE_TYPE.NORMAL_PACKERL, cardsToDiscard: [] };
         }
-         // Ensure we don't discard more than allowed or leave player with 0 cards
-        if ((player.hand.length - cardsToDiscardForStandard.length) <= 0 && cardsToDiscardForStandard.length > 0) {
-             cardsToDiscardForStandard.pop(); // Remove last added discard if it leaves 0 cards
-        }
-
-
-        if (anyPreviousPlayerDiscardedZero) {
-            const tempHandAfterStandardDiscard = player.hand.filter(c => !cardsToDiscardForStandard.some(d => d.key === c.key));
-            const trumpsInTempHand = tempHandAfterStandardDiscard.filter(c => (trumpSuit && c.suit === trumpSuit) || c.rank === WELI_RANK).length;
-            if (trumpsInTempHand === 0 && validExchangeOptions.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL)) {
-                logMessage(`AI (${player.name}): Strategy Exchange - After considering ace discard (due to opponent's 0 discard), now has 0 trumps. Choosing NORMAL_PACKERL.`);
-                return { type: EXCHANGE_TYPE.NORMAL_PACKERL, cardsToDiscard: [] };
-            }
-        }
-
+        
+        // If no override, proceed with the calculated standard exchange.
         logMessage(`AI (${player.name}): Strategy Exchange - Standard. Discarding ${cardsToDiscardForStandard.length} cards: ${cardsToDiscardForStandard.map(c=>c.toString()).join(', ')}.`);
         return { type: EXCHANGE_TYPE.STANDARD, cardsToDiscard: cardsToDiscardForStandard };
     }
 
-    // Fallback if no other option makes sense (should be rare if standard is always valid)
-    logMessage(`AI (${player.name}): Strategy Exchange - Fallback: No specific Packerl/Sau, standard option not processed? Choosing first valid option or Standard, discard 0.`);
+    // Absolute fallback if no other option makes sense (should be rare).
+    logMessage(`AI (${player.name}): Strategy Exchange - Fallback: No valid option processed. Choosing first available.`);
     const fallbackOption = validExchangeOptions[0] || { type: EXCHANGE_TYPE.STANDARD, cardsToDiscard: []};
     if (fallbackOption.type === EXCHANGE_TYPE.STANDARD && !fallbackOption.cardsToDiscard) {
-        fallbackOption.cardsToDiscard = []; // Ensure cardsToDiscard is an array for standard
+        fallbackOption.cardsToDiscard = [];
     }
     return fallbackOption;
 }
@@ -654,125 +617,140 @@ function _countHighCardsInSuits(player, minRank = 'X') {
 }
 
 
-// js/aiStrategies.js
 
-// --- Bidding Stage 2 Decision Function (CORRECTED) ---
-export function decideBidStage2(player, validBids, gameState, config) {
-    const isJoiningSneaker = gameState.sneaker && player !== gameState.sneaker;
-    const isSimulating = config.isSimulationRunning;
-
-    if (!isJoiningSneaker) {
-        // Fallback for unexpected scenarios, like joining an Oderer.
-        if (!isSimulating) logMessage(`AI (${player.name}): Strategy Bid2 - Not joining a standard Sneaker. Using fallback logic.`);
-        if (_hasCard(player, WELI_RANK) && validBids.includes(BID_OPTIONS.PLAY)) {
-            return BID_OPTIONS.PLAY;
-        }
-        if (validBids.includes(BID_OPTIONS.FOLD)) {
-            return BID_OPTIONS.FOLD;
-        }
-        return validBids.length > 0 ? validBids[0] : null;
-    }
-
-    // --- Core "Join Sneaker" Logic ---
-    const trumpSuit = gameState.trumpSuit;
-    if (!trumpSuit) {
-        if (!isSimulating) logMessage(`AI ERROR (${player.name}): Cannot evaluate hand for BidStage2, trump suit is unknown!`);
-        return validBids.includes(BID_OPTIONS.FOLD) ? BID_OPTIONS.FOLD : validBids[0];
-    }
-
-    // Hand Value Evaluation
+//  HELPER FUNCTION: To evaluate a hand's potential when the trump suit is unknown.
+function _evaluateHandForOder(player, gameState) {
     let score = 0;
     let logParts = [];
 
-    // Base points for each trump card
-    const trumpValues = { 'W': 10, 'A': 10, 'K': 6, 'O': 5, 'U': 4, 'X': 3, '9': 1, '8': 1, '7': 1 };
-    const myTrumps = _getTrumpCards(player, trumpSuit);
-    let trumpBaseScore = 0;
-    myTrumps.forEach(card => {
-        const rank = card.rank === WELI_RANK ? 'W' : (card.suit === trumpSuit ? card.rank : null);
-        if (rank && trumpValues[rank]) {
-            trumpBaseScore += trumpValues[rank];
+    // 1. Guaranteed Strength (Trump-Agnostic Assets)
+    if (_hasCard(player, WELI_RANK)) {
+        score += 12; // The Weli is the most valuable card in this situation.
+        logParts.push("Weli:+12");
+    }
+    const aces = player.hand.filter(c => c.rank === 'A');
+    score += aces.length * 6; // Each Ace is a very strong asset.
+    if (aces.length > 0) logParts.push(`Aces:${aces.length * 6}`);
+
+    // 2. Potential Strength (Suit Quality and Voids)
+    let suitPotentials = [];
+    const highCardRanks = { 'K': 3, 'O': 2, 'U': 1, 'X': 1 }; // Bonus values for high cards
+
+    SUITS.forEach(suit => {
+        const cardsInSuit = _getCardsOfSuit(player, suit);
+        let suitScore = 0;
+        // Bonus for length
+        if (cardsInSuit.length === 2) suitScore += 2;
+        if (cardsInSuit.length === 3) suitScore += 5;
+        if (cardsInSuit.length >= 4) suitScore += 8;
+        // Bonus for high cards within the suit
+        cardsInSuit.forEach(card => {
+            if (highCardRanks[card.rank]) {
+                suitScore += highCardRanks[card.rank];
+            }
+        });
+        suitPotentials.push(suitScore);
+
+        // Bonus for void suits
+        if (cardsInSuit.length === 0) {
+            score += 1;
+            logParts.push("Void:+1");
         }
     });
-    score += trumpBaseScore;
-    if (trumpBaseScore > 0) logParts.push(`trumps:${trumpBaseScore}`);
-    
-    // Trump Length Bonus
-    const numTrumps = myTrumps.length;
-    let lengthBonus = 0;
-    if (numTrumps === 2) lengthBonus = 3;
-    else if (numTrumps === 3) lengthBonus = 5;
-    else if (numTrumps >= 4) lengthBonus = 8;
-    score += lengthBonus;
-    if (lengthBonus > 0) logParts.push(`lenBonus:${lengthBonus}`);
 
-    // Void Suit Bonus
-    let voidSuitBonus = 0;
-    const nonTrumpSuits = SUITS.filter(s => s !== trumpSuit);
-    nonTrumpSuits.forEach(suit => {
-        if (_getCardsOfSuit(player, suit).length === 0) {
-            voidSuitBonus += 1;
-        }
-    });
-    score += voidSuitBonus;
-    if (voidSuitBonus > 0) logParts.push(`voidBonus:${voidSuitBonus}`);
+    const bestSuitPotential = Math.max(...suitPotentials);
+    score += bestSuitPotential;
+    if (bestSuitPotential > 0) logParts.push(`SuitPoten.:${bestSuitPotential}`);
 
-    // Situational Modifiers
+    // 3. Strategic Context (Bidding Position)
     const biddingOrder = [];
-    let tempTurn = gameState.nextPlayerIndex(gameState.sneaker.id);
+    let tempTurn = gameState.nextPlayerIndex(gameState.oderPlayer.id);
     for (let i = 0; i < gameState.players.length; i++) {
         const p = gameState.players[tempTurn];
-        if (p !== gameState.sneaker && p.status !== PLAYER_STATUS.FOLDED) {
-            biddingOrder.push(p.id);
+        if (p !== gameState.oderPlayer && p.status !== PLAYER_STATUS.FOLDED) {
+            biddingOrder.push(p);
         }
         tempTurn = gameState.nextPlayerIndex(tempTurn);
     }
-    
-    const myPosition = biddingOrder.indexOf(player.id);
-    let positionModifier = 0;
 
-    // --- FIX: Restructured the logic to correctly identify the last player ---
-    // Check if the player is the last one in the bidding order. This is the highest priority check.
-    if (myPosition === biddingOrder.length - 1 && biddingOrder.length > 0) {
-        positionModifier = 2; // Base bonus for being last.
-        
+    const myPosition = biddingOrder.findIndex(p => p.id === player.id);
+    if (myPosition === 0 && biddingOrder.length > 1) {
+        score -= 2; // Penalty for being first to decide with limited info.
+        logParts.push("Pos.Pen.:-2");
+    }
+    if (myPosition === biddingOrder.length - 1) {
         const partnersJoined = gameState.players.filter(p => p.status === PLAYER_STATUS.ACTIVE_PLAYER && p.id !== player.id).length;
         if (partnersJoined === 0) {
-            // Golden opportunity: Last to bid, no one else joined.
-            positionModifier += 5;  // Strong incentive to join.
-            if (!player.aiPlan) {
-                player.aiPlan = {};
-            }
-            player.aiPlan.intendPackerlIfLastJoin = true; 
-        } else if (partnersJoined === biddingOrder.length - 1) {
-            // Danger zone: Last to bid, everyone else already joined.
-            positionModifier -= 4;
+            score += 5; // Strong incentive to "save" the game.
+            logParts.push("SaveBonus:+5");
         }
-    } 
-    // If not the last bidder, check if they are the first.
-    else if (myPosition === 0 && biddingOrder.length > 1) {
-        positionModifier = -1; // Penalty for being first.
-    }
-    
-    score += positionModifier;
-    if (positionModifier !== 0) logParts.push(`sitMod:${positionModifier > 0 ? '+' : ''}${positionModifier}`);
-    
-    const threshold = config.bidStage2.minHandValueToPlayWithSneaker || 8; // Default to 8 if not set
-    const decision = score >= threshold;
-
-    if (!isSimulating) {
-        logMessage(`AI (${player.name}): Strategy Bid2 - Hand Value: ${score.toFixed(0)} [${logParts.join(', ')}] vs Threshold: ${threshold}. Decision: ${decision ? 'PLAY' : 'FOLD'}`);
     }
 
-    if (decision && validBids.includes(BID_OPTIONS.PLAY)) {
-        return BID_OPTIONS.PLAY;
+    logMessage(`AI (${player.name}): Oder Hand Eval: ${score.toFixed(0)} [${logParts.join(', ')}]`);
+    return score;
+}
+
+
+
+export function decideBidStage2(player, validBids, gameState, config) {
+    const isSimulating = config.isSimulationRunning;
+
+    // --- Case 1: Joining a Sneaker (Trump is known) ---
+    if (gameState.sneaker) {
+        // This is the existing, unchanged logic for joining a Sneaker
+        let score = 0;
+        let logParts = [];
+        const trumpSuit = gameState.trumpSuit;
+        if (!trumpSuit) {
+            if (!isSimulating) logMessage(`AI ERROR (${player.name}): Cannot evaluate hand for Sneaker, trump suit is unknown!`);
+            return validBids.includes(BID_OPTIONS.FOLD) ? BID_OPTIONS.FOLD : validBids[0];
+        }
+        const trumpValues = { 'W': 10, 'A': 10, 'K': 6, 'O': 5, 'U': 4, 'X': 3, '9': 1, '8': 1, '7': 1 };
+        const myTrumps = _getTrumpCards(player, trumpSuit);
+        let trumpBaseScore = 0;
+        myTrumps.forEach(card => {
+            const rank = card.rank === WELI_RANK ? 'W' : (card.suit === trumpSuit ? card.rank : null);
+            if (rank && trumpValues[rank]) trumpBaseScore += trumpValues[rank];
+        });
+        score += trumpBaseScore;
+        if (trumpBaseScore > 0) logParts.push(`trumps:${trumpBaseScore}`);
+        const numTrumps = myTrumps.length;
+        let lengthBonus = 0;
+        if (numTrumps === 2) lengthBonus = 3; else if (numTrumps === 3) lengthBonus = 5; else if (numTrumps >= 4) lengthBonus = 8;
+        score += lengthBonus;
+        if (lengthBonus > 0) logParts.push(`lenBonus:${lengthBonus}`);
+        let voidSuitBonus = 0;
+        const nonTrumpSuits = SUITS.filter(s => s !== trumpSuit);
+        nonTrumpSuits.forEach(suit => { if (_getCardsOfSuit(player, suit).length === 0) voidSuitBonus += 1; });
+        score += voidSuitBonus;
+        if (voidSuitBonus > 0) logParts.push(`voidBonus:${voidSuitBonus}`);
+
+        const threshold = config.bidStage2.minHandValueToPlayWithSneaker || 8;
+        const decision = score >= threshold;
+        if (!isSimulating) logMessage(`AI (${player.name}): Strategy Bid2 (Sneaker) - Hand Value: ${score.toFixed(0)} [${logParts.join(', ')}] vs Threshold: ${threshold}. Decision: ${decision ? 'PLAY' : 'FOLD'}`);
+        if (decision && validBids.includes(BID_OPTIONS.PLAY)) return BID_OPTIONS.PLAY;
+
+    // --- Case 2: Joining an Oderer (Trump is UNKNOWN) ---
+    } else if (gameState.oderPlayer) {
+        const score = _evaluateHandForOder(player, gameState);
+        const threshold = config.bidStage2.minHandValueToPlayWithOderer || 10; // Use new threshold
+        const decision = score >= threshold;
+
+        if (!isSimulating) {
+            logMessage(`AI (${player.name}): Strategy Bid2 (Oder) - Hand Value: ${score.toFixed(0)} vs Threshold: ${threshold}. Decision: ${decision ? 'PLAY' : 'FOLD'}`);
+        }
+        if (decision && validBids.includes(BID_OPTIONS.PLAY)) {
+            return BID_OPTIONS.PLAY;
+        }
+
+    // --- Fallback ---
+    } else {
+        if (!isSimulating) logMessage(`AI (${player.name}): Strategy Bid2 - Neither Sneaker nor Oderer found. Folding.`);
     }
-    
-    // Default to Fold if decision is false
+
+    // Default to Fold if any condition fails or isn't met
     if (validBids.includes(BID_OPTIONS.FOLD)) {
         return BID_OPTIONS.FOLD;
     }
-
-    // Absolute fallback
-    return validBids.length > 0 ? validBids[0] : null;
+    return validBids[0]; // Absolute fallback
 }

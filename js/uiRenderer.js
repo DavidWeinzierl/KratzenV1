@@ -262,7 +262,7 @@ export function renderGame(gameState) {
         infoDiv.classList.add('player-info');
         let dealerIndicator = (player.id === gameState.dealerIndex) ? ' <span class="dealer-indicator">DEALER</span>' : '';
         const playerNameHTML = `<p>${player.name} (P${player.id})${dealerIndicator}</p>`;
-        const statusHTML = `<p>Status: ${player.status}</p>`;
+        const statusHTML = `<p>${player.status}</p>`;
         const pointsHTML = `<p>Punkte: ${player.points.toFixed(1)}</p>`;
         let trickDisplay = player.tricksWonThisRound > 0 ? `<span class="tricks-highlight">${player.tricksWonThisRound}</span>` : player.tricksWonThisRound;
         const tricksHTML = `<p>Stiche: ${trickDisplay}</p>`;
@@ -363,13 +363,38 @@ export function renderGame(gameState) {
     const talonDisplayEl = document.getElementById('talon-display');
     if (trumpCardDisplayEl && talonDisplayEl) {
         trumpCardDisplayEl.innerHTML = '';
-        if (gameState.trumpCard && gameState.trumpSuit) {
+
+        // --- START OF MODIFIED TRUMP DISPLAY LOGIC ---
+        // Check for the special case where Weli was turned up first.
+        if (gameState.originalTrumpCard && gameState.originalTrumpCard.rank === WELI_RANK && gameState.trumpCard) {
+            // Create and style the Weli element (bottom card)
+            const weliEl = createCardElement(gameState.originalTrumpCard);
+            weliEl.classList.add('trump-card-stacked', 'bottom-card');
+            
+            // Create and style the actual trump card element (top card)
+            const actualTrumpEl = createCardElement(gameState.trumpCard);
+            actualTrumpEl.classList.add('trump-card-stacked', 'top-card');
+
+            // Add both to the display container
+            trumpCardDisplayEl.appendChild(weliEl);
+            trumpCardDisplayEl.appendChild(actualTrumpEl);
+
+        } else if (gameState.trumpCard && gameState.trumpSuit) {
+            // This is the normal case: just one trump card to display.
             const cardEl = createCardElement(gameState.trumpCard);
             trumpCardDisplayEl.appendChild(cardEl);
         } else {
-            const cardPlaceholder = document.createElement('div'); cardPlaceholder.classList.add('card-image-placeholder'); trumpCardDisplayEl.appendChild(cardPlaceholder);
+            // This is the placeholder case for before the game starts.
+            const cardPlaceholder = document.createElement('div');
+            cardPlaceholder.classList.add('card-image-placeholder');
+            trumpCardDisplayEl.appendChild(cardPlaceholder);
         }
-        const suitLabel = document.createElement('div'); suitLabel.classList.add('trump-suit-label'); suitLabel.textContent = 'Trumpf'; trumpCardDisplayEl.appendChild(suitLabel);
+        // --- END OF MODIFIED TRUMP DISPLAY LOGIC ---
+
+        const suitLabel = document.createElement('div');
+        suitLabel.classList.add('trump-suit-label');
+        suitLabel.textContent = 'Trumpf';
+        trumpCardDisplayEl.appendChild(suitLabel);
         
         talonDisplayEl.innerHTML = '';
         const talonCardBackImg = createCardElement(null); 
@@ -399,7 +424,6 @@ export function renderGame(gameState) {
         } else { console.warn("Invalid play object in currentTrick."); }
     });
 
-    // ... (highlighting current player - this part remains the same) ...
     document.querySelectorAll('.player-area.turn-highlight').forEach(el => el.classList.remove('turn-highlight'));
     const isP0ActuallyWaiting = isP0TurnForManualAction && (gameState.isWaitingForBidInput || gameState.isWaitingForManualPlay || gameState.isWaitingForManualDiscardSelection || gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection);
     if (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex] && !gameState.isAnimating && !isP0ActuallyWaiting &&
@@ -438,7 +462,6 @@ export function renderGame(gameState) {
             const playerP0 = gameState.players[manualPlayerId];
             const validExchangeOpts = GameRules.getValidExchangeOptions(playerP0, gameState.trumpSuit);
 
-            // --- UPDATED LOGIC: Check for mandatory superior options ---
             const hasSauOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.SAU);
             const hasStandardOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.STANDARD);
             const hasNormalPackerlOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL);
@@ -452,7 +475,6 @@ export function renderGame(gameState) {
             if (hasSauOpt) {
                 logUIMessage("UI: Standard Exchange option hidden as '4 auf die Sau' is available and mandatory.");
             }
-            // --- End of updated logic ---
 
             validExchangeOpts.forEach(opt => {
                 let buttonText = '';
@@ -460,7 +482,6 @@ export function renderGame(gameState) {
                 switch (opt.type) {
                     case EXCHANGE_TYPE.STANDARD:
                         buttonText = 'Karten kaufen';
-                        // --- MODIFICATION: Add check for SAU option ---
                         if (hideStandardBecauseOnlyNormalPackerlIsBetter || hasSauOpt) {
                              createThisButton = false;
                         }
@@ -500,7 +521,7 @@ export function renderGame(gameState) {
 
     if (!p0NeedsToMakeChoice && gameState.phase !== GAME_PHASE.ROUND_END) {
         const nextStepBtn = document.createElement('button');
-        nextStepBtn.textContent = "Next Step";
+        nextStepBtn.textContent = "Next Step (Space)";
         nextStepBtn.id = 'dynamic-next-step';
         nextStepBtn.classList.add('action-button', 'next-step-button-actionarea');
         nextStepBtn.addEventListener('click', nextStep);

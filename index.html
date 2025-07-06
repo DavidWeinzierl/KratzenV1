@@ -71,9 +71,9 @@
         <div id="strategy-variables-container" class="simulation-section">
             <h3>Strategy Variables</h3>
             <div class="strategy-row-header">
-                <h4>Player 1 (P0) Strategy</h4>
+                <h4>P0 Strategy</h4>
                 <h4></h4> <!-- Empty cell for the label column -->
-                <h4>Other Players (P1, P2, P3) Strategy</h4>
+                <h4>Default (P1, P2, P3) Strategy</h4>
             </div>
             <hr>
             
@@ -112,6 +112,18 @@
                 <div class="slider-with-value">
                     <input type="range" id="min-hand-value-play-sneaker-slider-others" min="0" max="20" step="1" value="8">
                     <span class="value-display" id="min-hand-value-play-sneaker-value-others">8</span>
+                </div>
+            </div>
+
+            <div class="strategy-row">
+                <div class="slider-with-value">
+                    <input type="range" id="min-hand-value-play-oderer-slider-p1" min="0" max="20" step="1" value="8">
+                    <span class="value-display" id="min-hand-value-play-oderer-value-p1">8</span>
+                </div>
+                <label>Min Hand Value to Play (w/ Oderer)</label>
+                <div class="slider-with-value">
+                    <input type="range" id="min-hand-value-play-oderer-slider-others" min="0" max="20" step="1" value="8">
+                    <span class="value-display" id="min-hand-value-play-oderer-value-others">8</span>
                 </div>
             </div>
             
