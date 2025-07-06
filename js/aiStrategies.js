@@ -478,12 +478,17 @@ function _getThreeHighDistinctSuitCards(player, trumpSuit) {
     const oneIsTrump = keyCards.some(kc => (trumpSuit && kc.suit === trumpSuit) || kc.rank === WELI_RANK);
     return { keyCards: keyCards, oneIsTrump: oneIsTrump };
 }
+
+
+// --- Bidding Stage 1 Decision Function (UPDATED) ---
 export function decideBidStage1(player, validBids, gameState, config) {
     const trumpSuit = gameState.trumpSuit;
     const hasTrumpAce = _hasCard(player, 'A', trumpSuit);
     const hasWeli = _hasCard(player, WELI_RANK);
     const numTrumps = _countTrumps(player, trumpSuit);
     player.aiPlan = {}; 
+
+    // --- Standard Sneak Bidding Logic (Unchanged) ---
     if (hasTrumpAce && hasWeli && validBids.includes(BID_OPTIONS.SNEAK)) {
         logMessage(`AI (${player.name}): Strategy Bid1 - Has Trump Ace and Weli. Bidding SNEAK.`);
         return BID_OPTIONS.SNEAK;
@@ -541,6 +546,8 @@ export function decideBidStage1(player, validBids, gameState, config) {
              }
         }
     }
+
+    // --- NEW "4 auf die Sau" Logic (Replaces old random chance logic) ---
     if (hasTrumpAce && validBids.includes(BID_OPTIONS.SNEAK)) {
         let isEffectivelySoloAce = false;
         const trumpsInHand = _getTrumpCards(player, trumpSuit);
@@ -553,21 +560,35 @@ export function decideBidStage1(player, validBids, gameState, config) {
                 isEffectivelySoloAce = true; 
             }
         }
+
         if(isEffectivelySoloAce) {
-            let shouldSneak = false; let reason = "";
-            if (Math.random() < config.bidStage1.soloTrumpAceSneakChance) {
-                shouldSneak = true; reason = "by random chance";
+            // Calculate player's bidding position (1-4)
+            const playerCount = gameState.players.length;
+            const forehandIndex = (gameState.dealerIndex + 1) % playerCount;
+            const myOffset = (player.id - forehandIndex + playerCount) % playerCount;
+            const biddingPosition = myOffset + 1; // 1 = forehand, 4 = rearhand
+
+            let chance = 0.0;
+            if (biddingPosition === 3) {
+                chance = 0.3; // 30% chance
+            } else if (biddingPosition === 4) {
+                chance = 0.8; // 80% chance
             }
-            if (!shouldSneak && config.bidStage1.alwaysSneakIfLastAndNoBid && _isLastToBid(gameState, player, true) && _noOneElseBidSneakOrOder(gameState, player)) {
-                shouldSneak = true; reason = "as last to bid and no prior Sneak/Oder"; // Corrected variable name
-            }
-            if (shouldSneak) {
+            // Positions 1 and 2 have a 0% chance
+
+            const willSneak = Math.random() < chance;
+            logMessage(`AI (${player.name}): Strategy Bid1 (Sau) - Solo Ace hand. Position: ${biddingPosition}/${playerCount}. Chance: ${chance*100}%. Result: ${willSneak ? 'SNEAK' : 'No Sneak'}.`);
+
+            if (willSneak) {
                player.aiPlan.intendSau = true;
-               logMessage(`AI (${player.name}): Strategy Bid1 - Effectively solo Trump Ace (possibly with Weli). Bidding SNEAK (${reason}). Intending "4 auf die Sau".`);
+               logMessage(`AI (${player.name}): Bidding SNEAK. Intending "4 auf die Sau".`);
                return BID_OPTIONS.SNEAK;
             }
         }
     }
+
+
+    // --- Oder/Weiter Fallback Logic (Unchanged) ---
     if (!gameState.oderPlayer) {
         const threeHighInfo = _getThreeHighDistinctSuitCards(player, trumpSuit);
         if (threeHighInfo) {
@@ -613,6 +634,7 @@ export function decideBidStage1(player, validBids, gameState, config) {
     return validBids.length > 0 ? validBids[0] : null;
 }
 
+
 function _countHighCardsInSuits(player, minRank = 'X') {
     if (!player || !player.hand) return { count: 0, suits: new Set() };
     const highRankIndex = RANKS.indexOf(minRank);
@@ -630,67 +652,127 @@ function _countHighCardsInSuits(player, minRank = 'X') {
     }
     return { count: suitsWithHighCard.size, suits: suitsWithHighCard };
 }
+
+
+// js/aiStrategies.js
+
+// --- Bidding Stage 2 Decision Function (CORRECTED) ---
 export function decideBidStage2(player, validBids, gameState, config) {
-    const hasWeli = _hasCard(player, WELI_RANK); 
-    const isJoiningRealSneaker = gameState.sneaker && player !== gameState.sneaker && !gameState.oderPlayer;
-    const isJoiningPendingOderer = gameState.oderPlayer && player !== gameState.oderPlayer; 
+    const isJoiningSneaker = gameState.sneaker && player !== gameState.sneaker;
+    const isSimulating = config.isSimulationRunning;
 
-    if (isJoiningRealSneaker) { 
-        const trumpSuit = gameState.trumpSuit; 
-        logMessage(`AI (${player.name}): Strategy Bid2 - Sneaker (${gameState.sneaker.name}) is set (direct Sneak). Trump: ${trumpSuit}. Considering Play/Fold.`);
-        if (hasWeli && validBids.includes(BID_OPTIONS.PLAY)) {
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Sneaker) - Has Weli. Bidding PLAY.`);
+    if (!isJoiningSneaker) {
+        // Fallback for unexpected scenarios, like joining an Oderer.
+        if (!isSimulating) logMessage(`AI (${player.name}): Strategy Bid2 - Not joining a standard Sneaker. Using fallback logic.`);
+        if (_hasCard(player, WELI_RANK) && validBids.includes(BID_OPTIONS.PLAY)) {
             return BID_OPTIONS.PLAY;
         }
-        const highTrumps = _getTrumpCardsWithValueOrHigher(player, trumpSuit, config.bidStage2.minTrumpValueToPlayWithSneaker, RANKS);
-        if (highTrumps.length > 0 && validBids.includes(BID_OPTIONS.PLAY)) {
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Sneaker) - Has high Trump(s). Bidding PLAY.`);
-            return BID_OPTIONS.PLAY;
+        if (validBids.includes(BID_OPTIONS.FOLD)) {
+            return BID_OPTIONS.FOLD;
         }
-        const otherTrumps = _getTrumpCards(player, trumpSuit).filter(t => !highTrumps.includes(t) && t.rank !== WELI_RANK);
-        if (otherTrumps.length > 0 && validBids.includes(BID_OPTIONS.PLAY)) {
-            if (Math.random() < config.bidStage2.lowTrumpPlayChanceWithSneaker) {
-                logMessage(`AI (${player.name}): Strategy Bid2 (vs Sneaker) - Has low Trump(s), random chance met. Bidding PLAY.`);
-                return BID_OPTIONS.PLAY;
-            } else {
-                logMessage(`AI (${player.name}): Strategy Bid2 (vs Sneaker) - Has low Trump(s), random chance NOT met for PLAY.`);
-            }
-        }
-        const activePlayersBesidesSneaker = gameState.players.filter(p => p.status === PLAYER_STATUS.ACTIVE_PLAYER && p !== gameState.sneaker);
-        if (config.bidStage2.playIfLastAndNoOneJoined && _isLastToBid(gameState, player, false) && activePlayersBesidesSneaker.length === 0 && validBids.includes(BID_OPTIONS.PLAY)) {
-            player.aiPlan.intendPackerlIfLastJoin = true;
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Sneaker) - Last to bid, no one joined Sneaker. Bidding PLAY. Intending Packerl.`);
-            return BID_OPTIONS.PLAY;
-        }
-
-    } else if (isJoiningPendingOderer) {
-        logMessage(`AI (${player.name}): Strategy Bid2 - Oder by ${gameState.oderPlayer.name} is PENDING. Trump UNKNOWN. Considering Play/Fold.`);
-        const highSuitInfo = _countHighCardsInSuits(player, 'X'); 
-        if (highSuitInfo.count >= 3 && validBids.includes(BID_OPTIONS.PLAY)) {
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Oderer) - Has >=3 suits with cards rank 'X' or higher. Bidding PLAY.`);
-            return BID_OPTIONS.PLAY;
-        }
-        const acesInHand = player.hand.filter(card => card.rank === 'A');
-        if (acesInHand.length >= 2 && validBids.includes(BID_OPTIONS.PLAY)) {
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Oderer) - Has ${acesInHand.length} Aces. Bidding PLAY.`);
-            return BID_OPTIONS.PLAY;
-        }
-        if (hasWeli && validBids.includes(BID_OPTIONS.PLAY)) {
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Oderer) - Has Weli. Bidding PLAY.`);
-            return BID_OPTIONS.PLAY;
-        }
-        const activePlayersBesidesOderer = gameState.players.filter(p => p.status === PLAYER_STATUS.ACTIVE_PLAYER && p !== gameState.oderPlayer);
-        if (config.bidStage2.playIfLastAndNoOneJoined && _isLastToBid(gameState, player, false) && activePlayersBesidesOderer.length === 0 && validBids.includes(BID_OPTIONS.PLAY)) {
-            logMessage(`AI (${player.name}): Strategy Bid2 (vs Oderer) - Last to bid, no one joined Oderer. Bidding PLAY.`);
-            return BID_OPTIONS.PLAY;
-        }
-    } else {
-        logMessage(`AI WARNING (${player.name}): Strategy Bid2 - Unexpected context. Not joining Sneaker or Oderer. Player status: ${player.status}. Sneaker: ${gameState.sneaker?.name}, Oderer: ${gameState.oderPlayer?.name}`);
+        return validBids.length > 0 ? validBids[0] : null;
     }
+
+    // --- Core "Join Sneaker" Logic ---
+    const trumpSuit = gameState.trumpSuit;
+    if (!trumpSuit) {
+        if (!isSimulating) logMessage(`AI ERROR (${player.name}): Cannot evaluate hand for BidStage2, trump suit is unknown!`);
+        return validBids.includes(BID_OPTIONS.FOLD) ? BID_OPTIONS.FOLD : validBids[0];
+    }
+
+    // Hand Value Evaluation
+    let score = 0;
+    let logParts = [];
+
+    // Base points for each trump card
+    const trumpValues = { 'W': 10, 'A': 10, 'K': 6, 'O': 5, 'U': 4, 'X': 3, '9': 1, '8': 1, '7': 1 };
+    const myTrumps = _getTrumpCards(player, trumpSuit);
+    let trumpBaseScore = 0;
+    myTrumps.forEach(card => {
+        const rank = card.rank === WELI_RANK ? 'W' : (card.suit === trumpSuit ? card.rank : null);
+        if (rank && trumpValues[rank]) {
+            trumpBaseScore += trumpValues[rank];
+        }
+    });
+    score += trumpBaseScore;
+    if (trumpBaseScore > 0) logParts.push(`trumps:${trumpBaseScore}`);
+    
+    // Trump Length Bonus
+    const numTrumps = myTrumps.length;
+    let lengthBonus = 0;
+    if (numTrumps === 2) lengthBonus = 3;
+    else if (numTrumps === 3) lengthBonus = 5;
+    else if (numTrumps >= 4) lengthBonus = 8;
+    score += lengthBonus;
+    if (lengthBonus > 0) logParts.push(`lenBonus:${lengthBonus}`);
+
+    // Void Suit Bonus
+    let voidSuitBonus = 0;
+    const nonTrumpSuits = SUITS.filter(s => s !== trumpSuit);
+    nonTrumpSuits.forEach(suit => {
+        if (_getCardsOfSuit(player, suit).length === 0) {
+            voidSuitBonus += 1;
+        }
+    });
+    score += voidSuitBonus;
+    if (voidSuitBonus > 0) logParts.push(`voidBonus:${voidSuitBonus}`);
+
+    // Situational Modifiers
+    const biddingOrder = [];
+    let tempTurn = gameState.nextPlayerIndex(gameState.sneaker.id);
+    for (let i = 0; i < gameState.players.length; i++) {
+        const p = gameState.players[tempTurn];
+        if (p !== gameState.sneaker && p.status !== PLAYER_STATUS.FOLDED) {
+            biddingOrder.push(p.id);
+        }
+        tempTurn = gameState.nextPlayerIndex(tempTurn);
+    }
+    
+    const myPosition = biddingOrder.indexOf(player.id);
+    let positionModifier = 0;
+
+    // --- FIX: Restructured the logic to correctly identify the last player ---
+    // Check if the player is the last one in the bidding order. This is the highest priority check.
+    if (myPosition === biddingOrder.length - 1 && biddingOrder.length > 0) {
+        positionModifier = 2; // Base bonus for being last.
+        
+        const partnersJoined = gameState.players.filter(p => p.status === PLAYER_STATUS.ACTIVE_PLAYER && p.id !== player.id).length;
+        if (partnersJoined === 0) {
+            // Golden opportunity: Last to bid, no one else joined.
+            positionModifier += 5;  // Strong incentive to join.
+            if (!player.aiPlan) {
+                player.aiPlan = {};
+            }
+            player.aiPlan.intendPackerlIfLastJoin = true; 
+        } else if (partnersJoined === biddingOrder.length - 1) {
+            // Danger zone: Last to bid, everyone else already joined.
+            positionModifier -= 4;
+        }
+    } 
+    // If not the last bidder, check if they are the first.
+    else if (myPosition === 0 && biddingOrder.length > 1) {
+        positionModifier = -1; // Penalty for being first.
+    }
+    
+    score += positionModifier;
+    if (positionModifier !== 0) logParts.push(`sitMod:${positionModifier > 0 ? '+' : ''}${positionModifier}`);
+    
+    const threshold = config.bidStage2.minHandValueToPlayWithSneaker || 8; // Default to 8 if not set
+    const decision = score >= threshold;
+
+    if (!isSimulating) {
+        logMessage(`AI (${player.name}): Strategy Bid2 - Hand Value: ${score.toFixed(0)} [${logParts.join(', ')}] vs Threshold: ${threshold}. Decision: ${decision ? 'PLAY' : 'FOLD'}`);
+    }
+
+    if (decision && validBids.includes(BID_OPTIONS.PLAY)) {
+        return BID_OPTIONS.PLAY;
+    }
+    
+    // Default to Fold if decision is false
     if (validBids.includes(BID_OPTIONS.FOLD)) {
-        logMessage(`AI (${player.name}): Strategy Bid2 - No PLAY condition met or not in a join context. Bidding FOLD.`);
         return BID_OPTIONS.FOLD;
     }
-    logMessage(`AI (${player.name}): Strategy Bid2 - Fallback, choosing first valid bid: ${validBids.length > 0 ? validBids[0] : 'None'}.`);
+
+    // Absolute fallback
     return validBids.length > 0 ? validBids[0] : null;
 }

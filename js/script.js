@@ -1,4 +1,3 @@
-// js/script.js
 import {
     initializeGame,
     nextStep,
@@ -180,25 +179,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // P0 Strategy Setup
     setupStrategyControl('min-companion-trump-value-select-p1', null, 'player1', 'bidStage1', 'minCompanionTrumpValueForSneak', false, false, true);
-    setupStrategyControl('solo-ace-sneak-chance-slider-p1', 'solo-ace-sneak-chance-value-p1', 'player1', 'bidStage1', 'soloTrumpAceSneakChance', false, true, false);
     setupStrategyControl('min-trump-oder-mit-select-p1', null, 'player1', 'bidStage1', 'minTrumpForOderMit', false, false, true);
-    setupStrategyControl('always-sneak-last-no-bid-checkbox-p1', null, 'player1', 'bidStage1', 'alwaysSneakIfLastAndNoBid', true, false, false);
-    setupStrategyControl('min-trump-value-play-sneaker-select-p1', null, 'player1', 'bidStage2', 'minTrumpValueToPlayWithSneaker', false, false, true);
-    setupStrategyControl('low-trump-play-chance-slider-p1', 'low-trump-play-chance-value-p1', 'player1', 'bidStage2', 'lowTrumpPlayChanceWithSneaker', false, true, false);
-    setupStrategyControl('min-suit-value-oder-play-select-p1', null, 'player1', 'bidStage2', 'minSuitValueForOderPlay', false, false, true);
+    
+    // --- UPDATED P0 BID STAGE 2 CONTROLS ---
+    setupStrategyControl('min-hand-value-play-sneaker-slider-p1', 'min-hand-value-play-sneaker-value-p1', 'player1', 'bidStage2', 'minHandValueToPlayWithSneaker', false, false, false);
     setupStrategyControl('play-if-last-no-one-joined-checkbox-p1', null, 'player1', 'bidStage2', 'playIfLastNoOneJoined', true, false, false);
+
     setupStrategyControl('max-trump-value-trumpfpackerl-select-p1', null, 'player1', 'exchange', 'maxTrumpValueForTrumpfPackerl', false, false, true);
     setupStrategyControl('consider-sau-if-planned-checkbox-p1', null, 'player1', 'exchange', 'considerSauIfPlanned', true, false, false);
     
     // Others Strategy Setup
     setupStrategyControl('min-companion-trump-value-select-others', null, 'otherPlayers', 'bidStage1', 'minCompanionTrumpValueForSneak', false, false, true);
-    setupStrategyControl('solo-ace-sneak-chance-slider-others', 'solo-ace-sneak-chance-value-others', 'otherPlayers', 'bidStage1', 'soloTrumpAceSneakChance', false, true, false);
     setupStrategyControl('min-trump-oder-mit-select-others', null, 'otherPlayers', 'bidStage1', 'minTrumpForOderMit', false, false, true);
-    setupStrategyControl('always-sneak-last-no-bid-checkbox-others', null, 'otherPlayers', 'bidStage1', 'alwaysSneakIfLastAndNoBid', true, false, false);
-    setupStrategyControl('min-trump-value-play-sneaker-select-others', null, 'otherPlayers', 'bidStage2', 'minTrumpValueToPlayWithSneaker', false, false, true);
-    setupStrategyControl('low-trump-play-chance-slider-others', 'low-trump-play-chance-value-others', 'otherPlayers', 'bidStage2', 'lowTrumpPlayChanceWithSneaker', false, true, false);
-    setupStrategyControl('min-suit-value-oder-play-select-others', null, 'otherPlayers', 'bidStage2', 'minSuitValueForOderPlay', false, false, true);
+
+    // --- UPDATED OTHERS BID STAGE 2 CONTROLS ---
+    setupStrategyControl('min-hand-value-play-sneaker-slider-others', 'min-hand-value-play-sneaker-value-others', 'otherPlayers', 'bidStage2', 'minHandValueToPlayWithSneaker', false, false, false);
     setupStrategyControl('play-if-last-no-one-joined-checkbox-others', null, 'otherPlayers', 'bidStage2', 'playIfLastNoOneJoined', true, false, false);
+
     setupStrategyControl('max-trump-value-trumpfpackerl-select-others', null, 'otherPlayers', 'exchange', 'maxTrumpValueForTrumpfPackerl', false, false, true);
     setupStrategyControl('consider-sau-if-planned-checkbox-others', null, 'otherPlayers', 'exchange', 'considerSauIfPlanned', true, false, false);
 
