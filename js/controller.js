@@ -1,4 +1,3 @@
-
 import { GameState, GameRules, Card, Deck } from './gameLogic.js';
 import { aiDecideBid, aiDecideExchange, aiDecideCardToPlay, aiDecideCardToDiscard } from './aiPlayer.js';
 import { renderGame, animateCardMovement, getElementCoordinates } from './uiRenderer.js';
@@ -1606,7 +1605,6 @@ function processScoringStep() {
     if(!isSimulationRunning)gameState.lastActionLog = summary.trim();
 }
 
-
 export async function nextStep() {
     if (!gameState) {
         logMessage("Error: gameState is null.");
@@ -1655,7 +1653,6 @@ export async function nextStep() {
             case GAME_PHASE.DEALING:
                 await processDealingStep(); // Progresses through dealing sub-phases
                 break;
-            // ... (rest of the cases remain the same)
             case GAME_PHASE.DEALER_DISCARD:
                 await processDealerDiscardStep();
                 break;
@@ -1689,91 +1686,90 @@ export async function nextStep() {
             case GAME_PHASE.SCORING:
                 processScoringStep();
                 break;
-            default:
-                if (!isSimulationRunning) logMessage(`Error: Unknown game phase: ${gameState.phase}`);
-                gameState.phase = GAME_PHASE.ROUND_END;
+                default:
+                    if (!isSimulationRunning) logMessage(`Error: Unknown game phase: ${gameState.phase}`);
+                    gameState.phase = GAME_PHASE.ROUND_END;
+            }
+        } catch (error) {
+            if (!isSimulationRunning) logMessage(`!!! Runtime Error in phase ${gameState.phase} (during ${phaseBeforeStep}): ${error.message} !!!`);
+            console.error("Error during phase execution:", phaseBeforeStep, gameState.phase, error.stack);
+            gameState.phase = GAME_PHASE.ROUND_END;
+            gameState.lastActionLog = `Error: ${error.message}`;
+        } finally {
+            gameState.isAnimating = false;
         }
-    } catch (error) {
-        if (!isSimulationRunning) logMessage(`!!! Runtime Error in phase ${gameState.phase} (during ${phaseBeforeStep}): ${error.message} !!!`);
-        console.error("Error during phase execution:", phaseBeforeStep, gameState.phase, error.stack);
-        gameState.phase = GAME_PHASE.ROUND_END;
-        gameState.lastActionLog = `Error: ${error.message}`;
-    } finally {
-        gameState.isAnimating = false;
-    }
-
-    const p0IsNowWaitingBecauseStepFunctionPaused_intermediate = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
-        (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
-         gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
-         gameState.isWaitingForManualPlay);
-
-    const stuckPhase = gameState.phase === phaseBeforeStep;
-    const stuckSubPhase = gameState.subPhase === subPhaseBeforeStep;
-    const stuckTurnPlayer = gameState.turnPlayerIndex === turnPlayerBeforeStep;
-
-    if (stuckPhase && stuckTurnPlayer &&
-        (gameState.phase !== GAME_PHASE.DEALING || stuckSubPhase) &&
-        gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP &&
-        !p0IsNowWaitingBecauseStepFunctionPaused_intermediate
-       ) {
-        if (!isSimulationRunning) logMessage(`Warning: Game may be stuck in phase ${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}. Forcing ROUND_END.`);
-        gameState.phase = GAME_PHASE.ROUND_END;
-    }
-
-    renderGame(gameState);
-
-    const p0IsNowWaitingBecauseStepFunctionPaused = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
-        (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
-         gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
-         gameState.isWaitingForManualPlay);
-
-    const p0ShouldActManuallyNextAndNotYetPausedByStepFunction =
-        gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
-        (
-          (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && !gameState.isWaitingForBidInput) ||
-          (gameState.phase === GAME_PHASE.BIDDING_STAGE_2 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker && gameState.players[0] !== gameState.oderPlayer && !gameState.isWaitingForBidInput) ||
-          (gameState.phase === GAME_PHASE.DEALER_DISCARD && gameState.dealerIndex === 0 && (gameState.players[0].hand.length - 4) > 0 && !gameState.isWaitingForManualDiscardSelection) ||
-          (gameState.phase === GAME_PHASE.EXCHANGE_PREP && gameState.sneaker && gameState.sneaker.id === 0 && gameState.needsOderDiscard && !gameState.isWaitingForManualDiscardSelection) ||
-          (gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid && gameState.activePlayerOrder.some(p=>p.id===0) && !gameState.isWaitingForManualExchangeChoice && !gameState.isWaitingForManualExchangeCardSelection ) ||
-          (gameState.phase === GAME_PHASE.FINAL_DISCARD && gameState.needsFinalDiscardPlayers.some(p=>p.id===0) && !gameState.players[0].hasBid && (gameState.players[0].hand.length - 4) > 0 && !gameState.isWaitingForManualDiscardSelection ) ||
-          (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid && !gameState.isWaitingForManualPlay)
-        ) &&
-        !p0IsNowWaitingBecauseStepFunctionPaused;
-
-
     
-    // --- Auto-advance or Pause logic ---
-    if (p0IsNowWaitingBecauseStepFunctionPaused) {
-        if (!isSimulationRunning) logMessage(`--- Paused for P0 Input: Phase [${gameState.phase}] Player: P0 ---`);
-    } else if (p0ShouldActManuallyNextAndNotYetPausedByStepFunction && gameState.phase !== GAME_PHASE.ROUND_END && !isSimulationRunning) {
-        if (!isSimulationRunning) logMessage(`--- Auto-advancing to P0's manual choice in Phase [${gameState.phase}] ---`);
-        await nextStep();
-    } else {
-        const initialSetupPhases = [GAME_PHASE.SETUP, GAME_PHASE.ANTE];
-        if (initialSetupPhases.includes(gameState.phase) && 
-            gameState.phase !== GAME_PHASE.ROUND_END && 
-            !isSimulationRunning && 
-            !p0IsNowWaitingBecauseStepFunctionPaused && // Ensure P0 isn't somehow waiting
-            !p0ShouldActManuallyNextAndNotYetPausedByStepFunction // And P0 isn't about to make a choice
+        const p0IsNowWaitingBecauseStepFunctionPaused_intermediate = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+            (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
+             gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
+             gameState.isWaitingForManualPlay);
+    
+        const stuckPhase = gameState.phase === phaseBeforeStep;
+        const stuckSubPhase = gameState.subPhase === subPhaseBeforeStep;
+        const stuckTurnPlayer = gameState.turnPlayerIndex === turnPlayerBeforeStep;
+    
+        if (stuckPhase && stuckTurnPlayer &&
+            (gameState.phase !== GAME_PHASE.DEALING || stuckSubPhase) &&
+            gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP &&
+            !p0IsNowWaitingBecauseStepFunctionPaused_intermediate
            ) {
-            if (!isSimulationRunning) logMessage(`--- Auto-advancing initial setup phase: [${gameState.phase}] ---`);
-            await nextStep(); // Recursive call to process the next setup step
+            if (!isSimulationRunning) logMessage(`Warning: Game may be stuck in phase ${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}. Forcing ROUND_END.`);
+            gameState.phase = GAME_PHASE.ROUND_END;
         }
-        else if (!isSimulationRunning) { // Original else branch for logging or showing next step
-            if (gameState.phase === GAME_PHASE.ROUND_END) {
-                const errEnd = gameState.lastActionLog?.includes("Error");
-                 if (errEnd) {
-                     logMessage(`--- Round ended due to error. Click Next Step to start a new round. ---`);
-                 } else {
-                     logMessage(`--- Round Ended. Click Next Step to start a new round. ---`);
-                 }
-            } else {
-                let currentTurnPlayerName = (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]) ? gameState.players[gameState.turnPlayerIndex].name : 'N/A';
-                logMessage(`--- Step Complete: Now Phase [${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}] (Turn: ${currentTurnPlayerName}) ---`);
+    
+        renderGame(gameState);
+    
+        const p0IsNowWaitingBecauseStepFunctionPaused = gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+            (gameState.isWaitingForBidInput || gameState.isWaitingForManualDiscardSelection ||
+             gameState.isWaitingForManualExchangeChoice || gameState.isWaitingForManualExchangeCardSelection ||
+             gameState.isWaitingForManualPlay);
+    
+        const p0ShouldActManuallyNextAndNotYetPausedByStepFunction =
+            gameState.turnPlayerIndex === 0 && isManualBiddingMode &&
+            (
+              (gameState.phase === GAME_PHASE.BIDDING_STAGE_1 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && !gameState.isWaitingForBidInput) ||
+              (gameState.phase === GAME_PHASE.BIDDING_STAGE_2 && GameRules.getValidBids(gameState).length > 0 && !gameState.players[0].hasBid && gameState.players[0] !== gameState.sneaker && gameState.players[0] !== gameState.oderPlayer && !gameState.isWaitingForBidInput) ||
+              (gameState.phase === GAME_PHASE.DEALER_DISCARD && gameState.dealerIndex === 0 && (gameState.players[0].hand.length - 4) > 0 && !gameState.isWaitingForManualDiscardSelection) ||
+              (gameState.phase === GAME_PHASE.EXCHANGE_PREP && gameState.sneaker && gameState.sneaker.id === 0 && gameState.needsOderDiscard && !gameState.isWaitingForManualDiscardSelection) ||
+              (gameState.phase === GAME_PHASE.EXCHANGE && !gameState.players[0].hasBid && gameState.activePlayerOrder.some(p=>p.id===0) && !gameState.isWaitingForManualExchangeChoice && !gameState.isWaitingForManualExchangeCardSelection ) ||
+              (gameState.phase === GAME_PHASE.FINAL_DISCARD && gameState.needsFinalDiscardPlayers.some(p=>p.id===0) && !gameState.players[0].hasBid && (gameState.players[0].hand.length - 4) > 0 && !gameState.isWaitingForManualDiscardSelection ) ||
+              (gameState.phase === GAME_PHASE.PLAYING_TRICKS && GameRules.getValidPlays(gameState, gameState.players[0]).length > 0 && !gameState.players[0].hasBid && !gameState.isWaitingForManualPlay)
+            ) &&
+            !p0IsNowWaitingBecauseStepFunctionPaused;
+    
+    
+        
+        // --- Auto-advance or Pause logic ---
+        if (p0IsNowWaitingBecauseStepFunctionPaused) {
+            if (!isSimulationRunning) logMessage(`--- Paused for P0 Input: Phase [${gameState.phase}] Player: P0 ---`);
+        } else if (p0ShouldActManuallyNextAndNotYetPausedByStepFunction && gameState.phase !== GAME_PHASE.ROUND_END && !isSimulationRunning) {
+            if (!isSimulationRunning) logMessage(`--- Auto-advancing to P0's manual choice in Phase [${gameState.phase}] ---`);
+            await nextStep();
+        } else {
+            const initialSetupPhases = [GAME_PHASE.SETUP, GAME_PHASE.ANTE];
+            if (initialSetupPhases.includes(gameState.phase) && 
+                gameState.phase !== GAME_PHASE.ROUND_END && 
+                !p0IsNowWaitingBecauseStepFunctionPaused && 
+                !p0ShouldActManuallyNextAndNotYetPausedByStepFunction
+               ) {
+                if (!isSimulationRunning) logMessage(`--- Auto-advancing initial setup phase: [${gameState.phase}] ---`);
+                await nextStep(); // Recursive call to process the next setup step
+            }
+            else if (!isSimulationRunning) { // Original else branch for logging or showing next step
+                if (gameState.phase === GAME_PHASE.ROUND_END) {
+                    const errEnd = gameState.lastActionLog?.includes("Error");
+                     if (errEnd) {
+                         logMessage(`--- Round ended due to error. Click Next Step to start a new round. ---`);
+                     } else {
+                         logMessage(`--- Round Ended. Click Next Step to start a new round. ---`);
+                     }
+                } else {
+                    let currentTurnPlayerName = (gameState.turnPlayerIndex !== -1 && gameState.players[gameState.turnPlayerIndex]) ? gameState.players[gameState.turnPlayerIndex].name : 'N/A';
+                    logMessage(`--- Step Complete: Now Phase [${gameState.phase}${gameState.subPhase ? ':'+gameState.subPhase : ''}] (Turn: ${currentTurnPlayerName}) ---`);
+                }
             }
         }
     }
-}
 
 
 export async function handleUserBid(chosenBid) {
@@ -1822,8 +1818,6 @@ export async function handleUserBid(chosenBid) {
 
 
 
-// --- UNIFIED SIMULATION LOGIC ---
-// This function runs a single, complete game round using the main async logic.
 async function runSingleSimulationRound() {
     // Await startNewRound to ensure the game state is fully reset for the round.
     await startNewRound();
@@ -1834,18 +1828,9 @@ async function runSingleSimulationRound() {
     // This async while loop correctly drives the game's state machine.
     while (gameState.phase !== GAME_PHASE.ROUND_END && gameState.phase !== GAME_PHASE.SETUP && safetyBreak < MAX_STEPS) {
         safetyBreak++;
-        const phaseBeforeStep = gameState.phase;
-
         // By awaiting nextStep(), we ensure each logical step (dealing, bidding, playing)
-        // fully completes before the while loop continues. This maintains the integrity
-        // of the state machine while running at maximum speed because animations are skipped.
+        // fully completes before the while loop continues.
         await nextStep();
-
-        // This check helps catch issues where a phase doesn't transition correctly.
-        if (gameState.phase === phaseBeforeStep && gameState.phase !== GAME_PHASE.ROUND_END) {
-            console.warn(`SIM: Game stuck in phase ${gameState.phase}. Forcing end.`);
-            gameState.phase = GAME_PHASE.ROUND_END;
-        }
     }
 
     if (safetyBreak >= MAX_STEPS) {

@@ -6,6 +6,7 @@ import * as Strategies from './aiStrategies.js';
 
 // Helper to conditionally log
 function logAICall(isSimulating, message) {
+
     if (!isSimulating) {
         importedLogMessage(message);
     }
