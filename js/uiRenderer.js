@@ -1,5 +1,3 @@
-// js/uiRenderer.js
-
 import { PLAYER_STATUS, GAME_PHASE, getCardImageFilename, WELI_RANK, EXCHANGE_TYPE, BID_OPTIONS } from './constants.js';
 import {
     nextStep,
@@ -198,8 +196,6 @@ function createCardElement(cardData, isSelectable = false, isSelected = false, i
 }
 
 
-// js/uiRenderer.js
-// ... (imports and helper functions like logUIMessage, getElementCoordinates, animateCardMovement, createCardElement remain the same) ...
 
 export function renderGame(gameState) {
     if (isSimulationRunning) {
@@ -220,7 +216,6 @@ export function renderGame(gameState) {
             btn.addEventListener('click', nextStep);
             dynamicButtonsMasterContainer.appendChild(btn);
         }
-        // ... (rest of null gameState rendering for trump, talon) ...
         const trumpCardDisplayEl = document.getElementById('trump-card-display');
         if(trumpCardDisplayEl) {
             trumpCardDisplayEl.innerHTML = '';
@@ -258,7 +253,6 @@ export function renderGame(gameState) {
     const manualPlayerId = 0;
     const isP0TurnForManualAction = isManualBiddingMode && gameState.turnPlayerIndex === manualPlayerId;
 
-    // ... (gameState.players.forEach to render player info and hands - this part remains the same) ...
     gameState.players.forEach((player, index) => {
         const playerArea = document.getElementById(`player-area-${index}`);
         if (!playerArea) return;
@@ -365,7 +359,6 @@ export function renderGame(gameState) {
     });
 
 
-    // ... (rendering trump card, talon, trick area - this part remains the same) ...
     const trumpCardDisplayEl = document.getElementById('trump-card-display');
     const talonDisplayEl = document.getElementById('talon-display');
     if (trumpCardDisplayEl && talonDisplayEl) {
@@ -444,14 +437,22 @@ export function renderGame(gameState) {
             p0NeedsToMakeChoice = true;
             const playerP0 = gameState.players[manualPlayerId];
             const validExchangeOpts = GameRules.getValidExchangeOptions(playerP0, gameState.trumpSuit);
+
+            // --- UPDATED LOGIC: Check for mandatory superior options ---
+            const hasSauOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.SAU);
             const hasStandardOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.STANDARD);
             const hasNormalPackerlOpt = validExchangeOpts.some(opt => opt.type === EXCHANGE_TYPE.NORMAL_PACKERL);
+            
             const hideStandardBecauseOnlyNormalPackerlIsBetter = 
                 validExchangeOpts.length === 2 && hasStandardOpt && hasNormalPackerlOpt;
 
             if (hideStandardBecauseOnlyNormalPackerlIsBetter) {
                 logUIMessage("UI: Standard Exchange option hidden as Normales Packerl is the preferred/enforced choice.");
             }
+            if (hasSauOpt) {
+                logUIMessage("UI: Standard Exchange option hidden as '4 auf die Sau' is available and mandatory.");
+            }
+            // --- End of updated logic ---
 
             validExchangeOpts.forEach(opt => {
                 let buttonText = '';
@@ -459,7 +460,10 @@ export function renderGame(gameState) {
                 switch (opt.type) {
                     case EXCHANGE_TYPE.STANDARD:
                         buttonText = 'Karten kaufen';
-                        if (hideStandardBecauseOnlyNormalPackerlIsBetter) createThisButton = false;
+                        // --- MODIFICATION: Add check for SAU option ---
+                        if (hideStandardBecauseOnlyNormalPackerlIsBetter || hasSauOpt) {
+                             createThisButton = false;
+                        }
                         break;
                     case EXCHANGE_TYPE.SAU: buttonText = '4 auf die Sau'; break;
                     case EXCHANGE_TYPE.TRUMPF_PACKERL: buttonText = 'Trumpf-Packerl'; break;

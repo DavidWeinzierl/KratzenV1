@@ -5,7 +5,6 @@ import { logMessage } from './logger.js';
 import { GameRules } from './gameLogic.js';
 
 // --- Helper Functions (Internal to this module or could be moved to a utility file) ---
-// ... (existing helper functions: _hasCard, _getCardsOfSuit, _sortCardsByValue, etc. remain unchanged) ...
 
 function _hasCard(player, rank, suit = null) {
     if (!player || !player.hand) return false;
@@ -107,8 +106,16 @@ function _sortCardsByValue(cards, trumpSuit, ascending = true) {
 }
 
 
-// --- Exchange Phase Decision Function ---
+
 export function decideExchange(player, validExchangeOptions, trumpSuit, gameState, config) {
+    // This is the best possible exchange, so it should always be taken.
+    const sauOption = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.SAU);
+    if (sauOption) {
+        logMessage(`AI (${player.name}): Strategy Exchange - "4 auf die Sau" is available and mandatory. Choosing SAU.`);
+        return { type: EXCHANGE_TYPE.SAU, cardsToDiscard: [] }; // Sau discards all but Ace Trump
+    }
+
+
     const hasWeli = _hasCard(player, WELI_RANK);
     const trumpCardsInHand = _getTrumpCards(player, trumpSuit);
     const numTrumps = trumpCardsInHand.length;
@@ -139,8 +146,8 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
 
     // 1. Prioritize AI Plans (Sau, Packerl if last join)
     if (player.aiPlan && player.aiPlan.intendSau && config.exchange.considerSauIfPlanned) {
-        const sauOption = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.SAU);
-        if (sauOption) {
+        const sauOptionFromPlan = validExchangeOptions.find(opt => opt.type === EXCHANGE_TYPE.SAU);
+        if (sauOptionFromPlan) {
             logMessage(`AI (${player.name}): Strategy Exchange - Intended "4 auf die Sau" & option valid. Choosing SAU.`);
             return { type: EXCHANGE_TYPE.SAU, cardsToDiscard: [] }; // Sau discards all but Ace Trump
         }
@@ -168,7 +175,7 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
         return { type: EXCHANGE_TYPE.TRUMPF_PACKERL, cardsToDiscard: [] };
     }
     // Normales-Packerl: No Trumps or Weli
-    // MODIFIED: If previous player discarded zero, and AI now has no trumps (after potentially deciding to discard aces),
+    // If previous player discarded zero, and AI now has no trumps (after potentially deciding to discard aces),
     // it might become eligible for Normales Packerl. This re-evaluation happens after Standard logic.
     let canConsiderNormalPackerlAfterAceDiscard = false;
 
@@ -240,7 +247,6 @@ export function decideExchange(player, validExchangeOptions, trumpSuit, gameStat
     }
     return fallbackOption;
 }
-
 
 export function decidePlayLead(player, validPlays, gameState, config) {
     const trumpSuit = gameState.trumpSuit;
@@ -336,7 +342,6 @@ export function decidePlayLead(player, validPlays, gameState, config) {
 
 
 // --- Play Follow Decision Function ---
-// ... (decidePlayFollow remains unchanged) ...
 export function decidePlayFollow(player, validPlays, gameState, config) {
     const trumpSuit = gameState.trumpSuit;
     const leadCardPlay = gameState.currentTrick.length > 0 ? gameState.currentTrick[0] : null;
@@ -390,7 +395,6 @@ export function decidePlayFollow(player, validPlays, gameState, config) {
 }
 
 // --- Generic Discard Decision Function ---
-// ... (decideGenericDiscard remains unchanged for now, but could be made aware of anyPreviousPlayerDiscardedZero if needed for other discard reasons) ...
 export function decideGenericDiscard(player, cardsToDiscardFrom, countToDiscard, reason, trumpSuit, gameState, config) {
     let handToConsider = [...cardsToDiscardFrom];
     let discards = [];
@@ -443,10 +447,6 @@ export function decideGenericDiscard(player, cardsToDiscardFrom, countToDiscard,
 }
 
 
-// --- Bidding Stage 1 Decision Function ---
-// ... (decideBidStage1 remains unchanged)
-// --- Bidding Stage 2 Decision Function ---
-// ... (decideBidStage2 remains unchanged)
 
 // (Make sure to include the other strategy functions: decideBidStage1, decideBidStage2, _getThreeHighDistinctSuitCards, _countHighCardsInSuits if they were previously elided)
 function _getThreeHighDistinctSuitCards(player, trumpSuit) {

@@ -93,7 +93,6 @@ function getStrategyForPlayer(player) {
 export function initializeGame(isForSimulation = false) {
     if (!isForSimulation) logMessage("Initializing New Game...");
     gameState = new GameState(PLAYER_COUNT);
-    // ... (rest of gameState initialization) ...
     gameState.isWaitingForManualPlay = false;
     selectedCardsForManualAction = [];
 
@@ -122,8 +121,6 @@ export function initializeGame(isForSimulation = false) {
                     // areOtherPlayersCardsHidden is now true by default
                     hideCardsToggleButton.textContent = areOtherPlayersCardsHidden ? "Karten anzeigen" : "Karten verdecken";
                 }
-                // --- End set initial button text ---
-        // ... (rest of the non-simulation initialization: logging settings, renderGame) ...
         logMessage(`Initial Settings -> Animation: ${currentAnimationSpeed.toFixed(1)}s, Ante: ${currentDealerAnte.toFixed(1)}, Muas: ${currentMuasPenalty.toFixed(1)}`);
         logMessage(`Initial Strategy (P0): ${JSON.stringify(player1StrategyConfig)}`);
         logMessage(`Initial Strategy (Others): ${JSON.stringify(otherPlayersStrategyConfig)}`);
@@ -132,7 +129,6 @@ export function initializeGame(isForSimulation = false) {
     }
 }
 
-// --- NEW Handler Functions for Manual P0 Actions ---
 
 export function handleManualCardSelectionForDiscardExchange(card) {
     if (!gameState || gameState.turnPlayerIndex !== 0 || !isManualBiddingMode || !card) return;
@@ -272,7 +268,6 @@ export async function handleManualExchangeTypeSelection(exchangeType) {
 
         const talonCoords = isSimulationRunning ? null : getElementCoordinates('#talon-display');
         if (exchangeType === EXCHANGE_TYPE.TRUMPF_PACKERL || exchangeType === EXCHANGE_TYPE.NORMAL_PACKERL) {
-            // ... (Packerl discard hand, draw logic as before) ...
             logMessage(`P0 (${playerP0.name}) chose ${exchangeType}. Discarding entire hand.`);
             const handData = [...playerP0.hand];
             for(const card of handData){
@@ -297,26 +292,39 @@ export async function handleManualExchangeTypeSelection(exchangeType) {
                 }
             }
         } else if (exchangeType === EXCHANGE_TYPE.SAU) {
-            // ... (Sau logic as before) ...
-            const trumpAce=playerP0.hand.find(c=>c&&c.rank==='A'&&c.suit===gameState.trumpSuit);
-            if(!trumpAce){ logMessage("P0 SAU Error: Trump Ace not found!"); playerP0.lastActionLog="SAU Error!";}
-            else {
-                const toDiscard = playerP0.hand.filter(c=>c&&c.key!==trumpAce.key);
-                for (const card of toDiscard) { /* animation & removal */
-                    const removedCard = playerP0.removeCard(card); if (removedCard) gameState.discardPile.push(removedCard);
+            const trumpAce = playerP0.hand.find(c => c && c.rank === 'A' && c.suit === gameState.trumpSuit);
+            if (!trumpAce) {
+                logMessage("P0 SAU Error: Trump Ace not found!");
+                playerP0.lastActionLog = "SAU Error!";
+                playerP0.hasBid = true; // End turn on error
+                await moveToNextExchanger();
+            } else {
+                const toDiscard = playerP0.hand.filter(c => c && c.key !== trumpAce.key);
+                for (const card of toDiscard) {
+                    const removedCard = playerP0.removeCard(card);
+                    if (removedCard) gameState.discardPile.push(removedCard);
                 }
-                playerP0.hand=[trumpAce];
-                if(!isSimulationRunning)renderGame(gameState);
-                await drawCardsForPlayer(playerP0,3);
-                playerP0.lastActionLog=`4 aufd SAU`;
-            }
-            playerP0.hasBid = true; // Exchange turn complete for P0
-            await moveToNextExchanger();
-            if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.EXCHANGE) {
-                p0ActsAgainImmediately = true;
+                playerP0.hand = [trumpAce];
+                if (!isSimulationRunning) renderGame(gameState);
+
+                await drawCardsForPlayer(playerP0, 4); // Draw 4 cards to get a total of 5
+                playerP0.lastActionLog = `4 auf die Sau`;
+
+                if (playerP0.hand.length > 4) { // Will now be true (hand has 5 cards)
+                    gameState.isWaitingForManualDiscardSelection = true;
+                    gameState.numCardsToDiscardManually = playerP0.hand.length - 4; // Will be 1
+                    logMessage(`P0: "4 auf die Sau" gave ${playerP0.hand.length} cards. Must discard ${gameState.numCardsToDiscardManually}.`);
+                    p0ActsAgainImmediately = true; // Next action for P0 is discarding
+                } else {
+                    // This is a fallback case if something went wrong and hand <= 4
+                    playerP0.hasBid = true; // Exchange turn complete for P0
+                    await moveToNextExchanger();
+                    if (gameState.turnPlayerIndex === 0 && isManualBiddingMode && gameState.phase === GAME_PHASE.EXCHANGE) {
+                        p0ActsAgainImmediately = true;
+                    }
+                }
             }
         }
-        // gameState.isAnimating = false;
     }
 
     renderGame(gameState); // Update UI after processing or setting up next P0 action
@@ -344,11 +352,9 @@ export async function handleConfirmManualStandardExchange() {
 
     logMessage(`P0 Confirmed Standard Exchange: Discarding ${numToDiscard} cards: ${cardsToDiscard.map(c => c.toString()).join(', ')}`);
     gameState.isWaitingForManualExchangeCardSelection = false;
-    // gameState.isAnimating = true;
 
     const talonCoords = isSimulationRunning ? null : getElementCoordinates('#talon-display');
     for (const card of cardsToDiscard) {
-        // ... (animation and card removal) ...
         if (!isSimulationRunning) { /* animation */ }
         const removed = playerP0.removeCard(card); if (removed) gameState.discardPile.push(removed);
     }
@@ -379,7 +385,7 @@ export async function handleConfirmManualStandardExchange() {
     }
 }
 
-// --- handleManualCardPlay (Updated) ---
+// --- handleManualCardPlay ---
 export async function handleManualCardPlay(cardPlayed) {
     if (!gameState || gameState.turnPlayerIndex !== 0 || !isManualBiddingMode || !gameState.isWaitingForManualPlay || !cardPlayed) return;
 
@@ -396,7 +402,6 @@ export async function handleManualCardPlay(cardPlayed) {
     // gameState.isAnimating = true; // Animation is part of card playing
 
     if (!isSimulationRunning) {
-        // ... (animation logic as before) ...
         const handArea = document.querySelector(`#player-area-${playerP0.id} .player-hand`);
         const cardVisualElement = handArea ? Array.from(handArea.querySelectorAll('.card-image')).find(img => img && img.alt && img.alt.startsWith(cardPlayed.toString())) : null;
         let sourceForAnimation = cardVisualElement || handArea || `#player-area-${playerP0.id}`;
@@ -995,7 +1000,6 @@ async function processOderDiscardStep() { // Sneaker (from Oder) discards
     }
 }
 
-// In controller.js
 
 async function processExchangeStep() {
     if (gameState.turnPlayerIndex === -1) { // No more players to exchange
@@ -1022,6 +1026,8 @@ async function processExchangeStep() {
 
     const validOptions = GameRules.getValidExchangeOptions(currentPlayer, gameState.trumpSuit);
     const strategyForPlayer = getStrategyForPlayer(currentPlayer);
+
+
     const decision = aiDecideExchange(currentPlayer, validOptions, gameState.trumpSuit, gameState, strategyForPlayer, isSimulationRunning);
 
     if (!decision || !decision.type || !validOptions.some(opt => opt.type === decision.type)) {
@@ -1071,26 +1077,52 @@ async function processExchangeStep() {
         }
         if(!isSimulationRunning) currentPlayer.lastActionLog=`${decision.type}`;
     } else if (isSau) {
-        if(!isSimulationRunning)logMessage(`${currentPlayer.name} chose SAU`);
-        const trumpAce=currentPlayer.hand.find(c=>c&&c.rank==='A'&&c.suit===gameState.trumpSuit);
-        if(!trumpAce){ if(!isSimulationRunning)logMessage("SAU Error: Trump Ace not found!"); currentPlayer.lastActionLog="SAU Error!"; }
-        else {
-            const toDiscard = currentPlayer.hand.filter(c=>c&&c.key!==trumpAce.key);
-            for(const card of toDiscard){
-                if(!card) continue;
-                if(!isSimulationRunning){
-                    const el=document.querySelector(`#player-area-${currentPlayer.id} .player-hand`);
-                    const vis=el?Array.from(el.querySelectorAll('.card-image')).find(i=>i&&i.alt&&i.alt.startsWith(card.toString())):null;
-                    let src=vis||el||`#player-area-${currentPlayer.id}`; if(vis)vis.style.visibility='hidden';
-                    await animateCardMovement(src,talonCoords,null,currentAnimationSpeed,{isDiscard:true});
+        if (!isSimulationRunning) logMessage(`${currentPlayer.name} chose "4 auf die Sau"`);
+        const trumpAce = currentPlayer.hand.find(c => c && c.rank === 'A' && c.suit === gameState.trumpSuit);
+        if (!trumpAce) {
+            if (!isSimulationRunning) logMessage(`SAU Error: Trump Ace not found for ${currentPlayer.name}!`);
+            currentPlayer.lastActionLog = "SAU Error!";
+        } else {
+            const toDiscard = currentPlayer.hand.filter(c => c && c.key !== trumpAce.key);
+            for (const card of toDiscard) {
+                if (!card) continue;
+                if (!isSimulationRunning) {
+                    const el = document.querySelector(`#player-area-${currentPlayer.id} .player-hand`);
+                    const vis = el ? Array.from(el.querySelectorAll('.card-image')).find(i => i && i.alt && i.alt.startsWith(card.toString())) : null;
+                    let src = vis || el || `#player-area-${currentPlayer.id}`;
+                    if (vis) vis.style.visibility = 'hidden';
+                    await animateCardMovement(src, talonCoords, null, currentAnimationSpeed, { isDiscard: true });
                 }
                 const removedCard = currentPlayer.removeCard(card);
                 if (removedCard) gameState.discardPile.push(removedCard);
             }
-            currentPlayer.hand=[trumpAce];
-            if(!isSimulationRunning)renderGame(gameState);
-            await drawCardsForPlayer(currentPlayer,3);
-            if(!isSimulationRunning) currentPlayer.lastActionLog=`4 aufd SAU`;
+            currentPlayer.hand = [trumpAce];
+            if (!isSimulationRunning) renderGame(gameState);
+
+            await drawCardsForPlayer(currentPlayer, 4); // Correctly draw 4 cards
+
+            if (currentPlayer.hand.length > 4) {
+                const toDiscardCount = currentPlayer.hand.length - 4; // Will be 1
+                if (!isSimulationRunning) logMessage(`AI (${currentPlayer.name}) Sau: Must discard ${toDiscardCount}`);
+                const finalDiscardsData = aiDecideCardToDiscard(currentPlayer, currentPlayer.hand, toDiscardCount, "Sau final", gameState.trumpSuit, gameState, strategyForPlayer, isSimulationRunning);
+                if (finalDiscardsData && Array.isArray(finalDiscardsData) && finalDiscardsData.length === toDiscardCount) {
+                    for (const cardData of finalDiscardsData) {
+                        if (!cardData) continue;
+                        if (!isSimulationRunning) {
+                            const el = document.querySelector(`#player-area-${currentPlayer.id} .player-hand`);
+                            const vis = el ? Array.from(el.querySelectorAll('.card-image')).find(i => i && i.alt && i.alt.startsWith(cardData.toString())) : null;
+                            let src = vis || el || `#player-area-${currentPlayer.id}`;
+                            if (vis) vis.style.visibility = 'hidden';
+                            await animateCardMovement(src, talonCoords, null, currentAnimationSpeed, { isDiscard: true });
+                        }
+                        const removed = currentPlayer.removeCard(cardData);
+                        if (removed) gameState.discardPile.push(removed);
+                    }
+                } else {
+                    if (!isSimulationRunning) logMessage(`AI (${currentPlayer.name}) Sau discard error.`);
+                }
+            }
+            if (!isSimulationRunning) currentPlayer.lastActionLog = `4 auf die Sau`;
         }
     } else { // Standard Exchange for AI
         const cardsToDiscardFromDecision = decision.cardsToDiscard || []; // Ensure it's an array
@@ -1695,7 +1727,6 @@ export async function nextStep() {
         if (!isSimulationRunning) logMessage(`--- Auto-advancing to P0's manual choice in Phase [${gameState.phase}] ---`);
         await nextStep();
     } else {
-        // --- NEW: Auto-advance for initial game setup phases ---
         const initialSetupPhases = [GAME_PHASE.SETUP, GAME_PHASE.ANTE];
         if (initialSetupPhases.includes(gameState.phase) && 
             gameState.phase !== GAME_PHASE.ROUND_END && 
@@ -1706,7 +1737,6 @@ export async function nextStep() {
             if (!isSimulationRunning) logMessage(`--- Auto-advancing initial setup phase: [${gameState.phase}] ---`);
             await nextStep(); // Recursive call to process the next setup step
         }
-        // --- END NEW: Auto-advance for initial game setup phases ---
         else if (!isSimulationRunning) { // Original else branch for logging or showing next step
             if (gameState.phase === GAME_PHASE.ROUND_END) {
                 const errEnd = gameState.lastActionLog?.includes("Error");
