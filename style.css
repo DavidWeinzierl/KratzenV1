@@ -690,3 +690,131 @@ body {
     top: 3%;
     z-index: 2; /* Ensures it's on top of the bottom card */
 }
+
+
+/* --- Rotate Overlay --- */
+#rotate-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    z-index: 2000;
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #e0e0e0;
+    text-align: center;
+    font-size: 1.2em;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#rotate-overlay svg {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 20px;
+    animation: rotate-animation 2.5s infinite ease-in-out;
+}
+
+@keyframes rotate-animation {
+    0% { transform: rotate(0deg); }
+    40% { transform: rotate(90deg); }
+    60% { transform: rotate(90deg); }
+    100% { transform: rotate(0deg); }
+}
+
+
+/* --- Mobile-Specific Media Queries --- */
+
+/* Show the overlay ONLY when in portrait mode */
+@media (orientation: portrait) {
+    #rotate-overlay {
+        display: flex;
+    }
+}
+
+/* Adjustments for SMALLER LANDSCAPE screens (e.g., phones) */
+@media (max-width: 900px) and (orientation: landscape) {
+
+    /* Make the game board fit the screen height */
+    #game-board {
+        width: 100%;
+        height: 98vh; /* Use almost full viewport height */
+        padding: 5px;
+        border-radius: 0;
+        min-height: 480px;
+    }
+
+    /* Reduce card sizes */
+    .card-image {
+        width: 60px;  /* from 72px */
+        height: 90px; /* from 108px */
+    }
+
+    .card-image-placeholder {
+        width: 60px;
+        height: 90px;
+    }
+
+    /* Adjust player areas for smaller cards */
+    .player-area {
+        min-height: 110px; /* from 140px */
+        gap: 5px;
+        padding: 4px;
+        width: 35%; /* slightly reduce width */
+    }
+
+    .player-hand {
+        height: 95px; /* from 120px */
+        width: 280px; /* from 380px */
+    }
+    
+    .player-info {
+        font-size: 0.8em;
+        flex-basis: 110px; /* from 160px */
+    }
+
+    #center-area {
+        gap: 5px;
+    }
+
+    /* Adjust center info/trick areas */
+    #game-info, #trick-area {
+        min-width: 240px; /* from 300px */
+        min-height: 110px; /* from 130px */
+        padding: 5px;
+    }
+
+    #trump-card-display, #talon-display {
+        min-height: 95px; /* from 115px */
+        width: 80px; /* from 100px */
+    }
+    
+    #trump-card-display {
+        min-width: 95px; /* from 120px */
+    }
+
+    /* Reduce font size on controls and make them wrap */
+    #controls {
+        font-size: 0.9em;
+        margin: 5px 0;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    /* Make log/sim area scrollable if it overflows */
+    body {
+        overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+    
+    #simulation-container, #log-container {
+        width: 95%; /* Use more width */
+    }
+
+    #dynamic-buttons-master-container {
+        margin-bottom: 20px;
+    }
+}

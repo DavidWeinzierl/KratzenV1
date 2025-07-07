@@ -216,6 +216,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupStrategyControl('min-hand-value-play-oderer-slider-others', 'min-hand-value-play-oderer-value-others', 'otherPlayers', 'bidStage2', 'minHandValueToPlayWithOderer', false, false, false);
     setupStrategyControl('max-trump-value-trumpfpackerl-select-others', null, 'otherPlayers', 'exchange', 'maxTrumpValueForTrumpfPackerl', false, false, true);
     setupStrategyControl('consider-sau-if-planned-checkbox-others', null, 'otherPlayers', 'exchange', 'considerSauIfPlanned', true, false, false);
+    
+
+    const fullscreenButton = document.getElementById('fullscreen-button');
+    if (fullscreenButton) {
+        // Check if the necessary APIs are supported by the browser
+        const fullscreenEnabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+        const orientationLockSupported = 'orientation' in screen && typeof screen.orientation.lock === 'function';
+
+        if (fullscreenEnabled && orientationLockSupported) {
+            fullscreenButton.addEventListener('click', async () => {
+                const docEl = document.documentElement;
+
+                try {
+                    // First, request to go into fullscreen mode
+                    if (docEl.requestFullscreen) {
+                        await docEl.requestFullscreen();
+                    } else if (docEl.webkitRequestFullscreen) { /* Safari */
+                        await docEl.webkitRequestFullscreen();
+                    }
+
+                    // Once in fullscreen, try to lock the orientation to landscape
+                    // Using a try-catch block for the lock itself as it can fail
+                    try {
+                        await screen.orientation.lock('landscape');
+                        logMessage("Fullscreen enabled and orientation locked to landscape.");
+                    } catch (lockError) {
+                        // This might happen if the user's OS has an orientation lock on
+                        logMessage("Entered fullscreen, but could not lock orientation.");
+                        console.error("Orientation Lock Error:", lockError);
+                    }
+
+                } catch (err) {
+                    logMessage(`Error entering fullscreen mode: ${err.message}`);
+                    console.error("Fullscreen Request Error:", err);
+                }
+            });
+        } else {
+            // If APIs are not supported (e.g., on a desktop), hide the button.
+            fullscreenButton.style.display = 'none';
+        }
+    }
 
     initializeGame();
 
