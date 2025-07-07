@@ -5,6 +5,8 @@ import {
     setMuasPenalty,
     updateStrategyParameter,
     setAnimationSpeed,
+    setFailPenalty,
+    setPointsPerTrick,
     runBatchSimulation,
     toggleOtherPlayersCardVisibility
 } from './controller.js';
@@ -77,6 +79,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const muasPenaltySlider = document.getElementById('no-loser-penalty-slider');
     const muasPenaltyValueSpan = document.getElementById('no-loser-penalty-value');
     const hideCardsToggleButton = document.getElementById('hide-cards-toggle');
+    const failPenaltySlider = document.getElementById('fail-penalty-slider');
+    const failPenaltyValueSpan = document.getElementById('fail-penalty-value');
+    const pointsPerTrickSlider = document.getElementById('points-per-trick-slider');
+    const pointsPerTrickValueSpan = document.getElementById('points-per-trick-value');
 
     function setupStrategyControl(inputId, valueDisplayId, targetGroup, category, parameterName, isCheckbox = false, isFloat = false, isSelect = false) {
         const inputElement = document.getElementById(inputId);
@@ -167,6 +173,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     } else {
         console.warn('"Muas" Penalty slider or value display not found!');
+    }
+
+    if (failPenaltySlider && failPenaltyValueSpan) {
+        const initialPenalty = parseInt(failPenaltySlider.value, 10);
+        failPenaltyValueSpan.textContent = initialPenalty.toString();
+        setFailPenalty(initialPenalty);
+        failPenaltySlider.addEventListener('input', () => {
+            const value = parseInt(failPenaltySlider.value, 10);
+            failPenaltyValueSpan.textContent = value.toString();
+            setFailPenalty(value);
+        });
+    } else {
+        console.warn("Fail Penalty slider or value display not found!");
+    }
+
+    if (pointsPerTrickSlider && pointsPerTrickValueSpan) {
+        const initialPoints = parseFloat(pointsPerTrickSlider.value);
+        pointsPerTrickValueSpan.textContent = initialPoints.toFixed(1);
+        setPointsPerTrick(initialPoints);
+        pointsPerTrickSlider.addEventListener('input', () => {
+            const value = parseFloat(pointsPerTrickSlider.value);
+            pointsPerTrickValueSpan.textContent = value.toFixed(1);
+            setPointsPerTrick(value);
+        });
+    } else {
+        console.warn("Points per Trick slider or value display not found!");
     }
 
     // P0 Strategy Setup

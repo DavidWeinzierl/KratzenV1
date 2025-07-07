@@ -65,6 +65,17 @@
                 <input type="range" id="no-loser-penalty-slider" name="noLoserPenalty" min="0" max="1" step="0.1" value="0.2">
                 <span class="value-display" id="no-loser-penalty-value">1.0</span>
             </div>
+            <div class="slider-group">
+                <label for="fail-penalty-slider">Faller zahlt (x2 für Schlager):</label>
+                <input type="range" id="fail-penalty-slider" name="failPenalty" min="0" max="8" step="1" value="4">
+                <span class="value-display" id="fail-penalty-value">4</span>
+            </div>
+            <div class="slider-group">
+                <label for="points-per-trick-slider">Punkte/Stich:</label>
+                <input type="range" id="points-per-trick-slider" name="pointsPerTrick" min="0.5" max="2" step="0.1" value="1.0">
+                <span class="value-display" id="points-per-trick-value">1.0</span>
+            </div>
+
         </div>
 
         <!-- Strategy Variables Section -->
@@ -152,6 +163,9 @@
             <label for="simulation-games-input">Number of Games:</label>
             <input type="number" id="simulation-games-input" name="numGames" min="1" max="1000000" value="1000" style="width: 80px;">
             <button id="run-simulation-button">Run Simulation</button>
+            <label style="margin-left: 20px;">
+                <input type="checkbox" id="log-during-simulation-toggle"> Log during simulation
+            </label>
         </div>
         <div id="simulation-progress-container" style="display: none; margin-top: 10px;">
             <div id="simulation-progress-bar-fill"></div>

@@ -7,10 +7,13 @@ import { PLAYER_STATUS, GAME_PHASE, BID_OPTIONS, EXCHANGE_TYPE, WELI_RANK, RANKS
 let gameState = null;
 const PLAYER_COUNT = 4;
 export let isManualBiddingMode = false; // Global flag for P0 manual play on all relevant actions
+export let logInSimulation = false; 
 
 let currentDealerAnte = 1.0;
 let currentMuasPenalty = 1.0;
 let currentAnimationSpeed = 0.5;
+let currentFailPenaltyBase = 4;
+let currentPointsPerTrick = 1.0;
 
 
 const defaultStrategy = {
@@ -64,6 +67,17 @@ async function replenishTalonIfNeeded() {
 
 export function setDealerAnte(value) { currentDealerAnte = parseFloat(value); if(!isNaN(currentDealerAnte)) logMessage(`Dealer Ante: ${currentDealerAnte.toFixed(1)}`); else console.warn("Invalid Dealer Ante value:", value);}
 export function setMuasPenalty(value) { currentMuasPenalty = parseFloat(value); if(!isNaN(currentMuasPenalty)) logMessage(`"Muas" Penalty: ${currentMuasPenalty.toFixed(1)}`);  else console.warn("Invalid Muas Penalty value:", value);}
+
+export function setFailPenalty(value) {
+    currentFailPenaltyBase = parseInt(value, 10);
+    if (!isNaN(currentFailPenaltyBase)) logMessage(`Base Fail Penalty set to: ${currentFailPenaltyBase}`);
+    else console.warn("Invalid Fail Penalty value:", value);
+}
+export function setPointsPerTrick(value) {
+    currentPointsPerTrick = parseFloat(value);
+    if (!isNaN(currentPointsPerTrick)) logMessage(`Points per Trick set to: ${currentPointsPerTrick.toFixed(1)}`);
+    else console.warn("Invalid Points per Trick value:", value);
+}
 
 export function updateStrategyParameter(targetGroup, category, parameterName, value) {
     let configToUpdate = (targetGroup === 'player1') ? player1StrategyConfig : otherPlayersStrategyConfig;
@@ -1577,12 +1591,19 @@ function processAllWeiterPenalty() {
 }
 
 function processScoringStep() {
-    if (!isSimulationRunning) logMessage("Calculating scores...");
+    if (!isSimulationRunning || logInSimulation) logMessage("Calculating scores...");
     let scores;
     try {
-        scores = GameRules.calculateRoundScores(gameState, currentDealerAnte, currentMuasPenalty);
+        // THE FIX: Ensure all 5 required parameters are passed to the function call.
+        scores = GameRules.calculateRoundScores(
+            gameState, 
+            currentDealerAnte, 
+            currentMuasPenalty,
+            currentFailPenaltyBase,
+            currentPointsPerTrick
+        );
     } catch (error) {
-        if (!isSimulationRunning) logMessage("Scoring error: " + error.message);
+        if (!isSimulationRunning || logInSimulation) logMessage("Scoring error: " + error.message);
         gameState.phase = GAME_PHASE.ROUND_END; gameState.turnPlayerIndex = -1; return;
     }
     let summary = "Round scored: ";
@@ -1590,7 +1611,7 @@ function processScoringStep() {
         const info = scores[player.id];
         if (info) {
             player.points += info.points;
-            if (!isSimulationRunning) {
+            if (!isSimulationRunning) { // Keep UI log brief
                 let desc=(gameState.roundWinner&&player===gameState.roundWinner)?`Griagt an Pot geschenkt`:
                          (player.status===PLAYER_STATUS.ACTIVE_SNEAKER)?(info.tricks>=2?`Erfolgreich geschlagen!`:`Schlager Fällt!`):
                          (player.status===PLAYER_STATUS.ACTIVE_PLAYER)?(info.tricks>=1?`Is durch`:`Is gfoin!`):
@@ -1843,46 +1864,46 @@ async function runSingleSimulationRound() {
 }
 
 export async function runBatchSimulation(numGames, progressCallback) {
-    isSimulationRunning = true; // Set the global flag to disable UI updates and animations
-    isManualBiddingMode = false; // Ensure manual mode is off for simulation
+    const logToggle = document.getElementById('log-during-simulation-toggle');
+    logInSimulation = logToggle ? logToggle.checked : false;
+
+    isSimulationRunning = true;
+    isManualBiddingMode = false;
     logMessage(`Starting batch simulation for ${numGames} games...`);
 
     const aggregatedPlayerPoints = Array(PLAYER_COUNT).fill(0);
     const playerNames = gameState ? gameState.players.map(p => p.name) : Array(PLAYER_COUNT).fill(null).map((_, i) => `P${i}`);
     let gamesSuccessfullyCompleted = 0;
-    // Store the UI's current point totals so we can restore them after the simulation.
     const initialUiPlayerPoints = gameState ? gameState.players.map(p => p.points) : Array(PLAYER_COUNT).fill(0);
 
-    // Give the browser a moment to update the UI before the intensive loop
     await new Promise(resolve => setTimeout(resolve, 50));
 
     const startTime = performance.now();
 
     for (let i = 0; i < numGames; i++) {
-        // --- FIX for "0 Points" Bug ---
-        // Before each simulated game, reset the points in the gameState to 0.
-        // This ensures that after the round, player.points holds the score for *only that round*.
         if (gameState && gameState.players) {
             gameState.players.forEach(p => p.points = 0);
         }
 
-        // Await the now-async simulation round function.
-        await runSingleSimulationRound();
+        await runSingleSimulationRound(i + 1);
 
         if (gameState.phase === GAME_PHASE.ROUND_END) {
             gamesSuccessfullyCompleted++;
-            // Now, add the single-round score to our persistent aggregate.
             gameState.players.forEach((player, index) => {
-                aggregatedPlayerPoints[index] += player.points;
+                // NaN check before aggregating points
+                if (!isNaN(player.points)) {
+                    aggregatedPlayerPoints[index] += player.points;
+                } else {
+                    console.warn(`NaN detected for player ${player.name} in game ${i+1}. Not aggregating.`);
+                }
                 if (!playerNames[index] && player.name) playerNames[index] = player.name;
             });
         }
 
-        // Update the progress bar periodically
         if ((i + 1) % 1000 === 0 || (i + 1) === numGames) {
             if (progressCallback) {
                 const percentComplete = ((i + 1) / numGames) * 100;
-                await new Promise(resolve => setTimeout(resolve, 0)); // Yield to browser
+                await new Promise(resolve => setTimeout(resolve, 0));
                 progressCallback(percentComplete);
             }
         }
@@ -1892,9 +1913,8 @@ export async function runBatchSimulation(numGames, progressCallback) {
     const duration = ((endTime - startTime) / 1000).toFixed(2);
     logMessage(`Batch simulation finished in ${duration} seconds. ${gamesSuccessfullyCompleted}/${numGames} games completed successfully.`);
 
-    isSimulationRunning = false; // Unset the flag
+    isSimulationRunning = false;
 
-    // Re-initialize the game for UI play and restore the original scores.
     initializeGame(false);
     if (gameState && initialUiPlayerPoints) {
         gameState.players.forEach((p, idx) => p.points = initialUiPlayerPoints[idx]);

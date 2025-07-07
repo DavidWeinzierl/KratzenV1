@@ -498,95 +498,77 @@ export const GameRules = {
     }, // End determineTrickWinner
 
 
-    // --- calculateRoundScores (MODIFIED Muas Penalty Application) ---
-    calculateRoundScores(gameState, dealerAnte, muasPenalty) {
+
+    calculateRoundScores(gameState, dealerAnte, muasPenalty, baseFailPenalty, pointsPerTrick) {
         const scores = {};
-        const roundWinner = gameState.roundWinner; // Uncontested winner, if any
+        const roundWinner = gameState.roundWinner;
         const sneaker = gameState.sneaker;
-        const baseSneakerFailPenalty = 8; // V2 Rules: Fixed base penalty for 0/1 trick
-        const basePlayerFailPenalty = 4;  // V2 Rules: Fixed base penalty for 0 tricks
+        
+        const baseSneakerFailPenalty = baseFailPenalty * 2;
+        const basePlayerFailPenalty = baseFailPenalty;
 
-        let applyNoLosersPenalty = (sneaker !== null); // Penalty *potentially* applies if a sneaker existed during the round
-        let activePlayerCount = 0; // Count players who didn't fold
+        let sneakerTeamSucceeded = (sneaker !== null); 
 
-        // --- First Loop: Calculate Base Scores & Check for Individual Failures ---
         for (const player of gameState.players) {
             let baseScore = 0;
             let reportedTricks = 0;
             const isDealer = gameState.dealerIndex === player.id;
-            const currentStatus = player.status || PLAYER_STATUS.WAITING; // Use status at end of round
+            const currentStatus = player.status || PLAYER_STATUS.WAITING;
 
-            // Determine Base Score based on status and tricks
             if (roundWinner && player === roundWinner) {
                 reportedTricks = 4;
-                baseScore = reportedTricks;
-                activePlayerCount++;
-                // No failure occurred
+                baseScore = reportedTricks * pointsPerTrick;
             } else if (currentStatus === PLAYER_STATUS.FOLDED) {
                 baseScore = 0;
                 reportedTricks = 0;
-                // Folded players don't count as active but WILL receive penalty if applied
             } else if (currentStatus === PLAYER_STATUS.ACTIVE_SNEAKER) {
-                activePlayerCount++;
                 const tricks = player.tricksWonThisRound;
                 reportedTricks = tricks;
-                if (tricks >= 2) { // Sneaker success
-                    baseScore = tricks;
-                } else { // Sneaker failure
-                    baseScore = tricks - baseSneakerFailPenalty;
-                    applyNoLosersPenalty = false; // A failure occurred
+                if (tricks >= 2) {
+                    baseScore = tricks * pointsPerTrick;
+                } else {
+                    baseScore = (tricks * pointsPerTrick) - baseSneakerFailPenalty;
+                    sneakerTeamSucceeded = false;
                 }
             } else if (currentStatus === PLAYER_STATUS.ACTIVE_PLAYER) {
-                activePlayerCount++;
-                 const tricks = player.tricksWonThisRound;
-                 reportedTricks = tricks;
-                 if (tricks >= 1) { // Player success
-                     baseScore = tricks;
-                 } else { // Player failure
-                     baseScore = tricks - basePlayerFailPenalty;
-                     applyNoLosersPenalty = false; // A failure occurred
-                 }
+                const tricks = player.tricksWonThisRound;
+                reportedTricks = tricks;
+                if (tricks >= 1) {
+                    baseScore = tricks * pointsPerTrick;
+                } else {
+                    baseScore = (tricks * pointsPerTrick) - basePlayerFailPenalty;
+                    sneakerTeamSucceeded = false;
+                }
             } else {
-                 console.warn(`Calculating score for player ${player.name} with unexpected status: ${currentStatus}. Setting base score to 0.`);
+                 console.warn(`Calculating score for player ${player.name} with unexpected status: ${currentStatus}.`);
                  baseScore = 0;
                  reportedTricks = 0;
             }
 
-            // Calculate intermediate score (before Muas penalty)
             let finalScore = baseScore;
             if (isDealer) {
                 finalScore -= dealerAnte;
             }
 
-            // Store intermediate results (status no longer needed for penalty check)
             scores[player.id] = {
                 points: finalScore,
                 tricks: reportedTricks,
-                // _status: currentStatus // No longer need to store status for penalty logic
             };
-        } // --- End of First Loop ---
+        }
 
-
-        // --- Apply "Muas" (No Losers) Penalty if applicable ---
-        // Condition: Penalty was not cancelled AND there was a sneaker AND AT LEAST ONE active player existed
-        if (applyNoLosersPenalty && sneaker && activePlayerCount >= 1) {
-            const penaltyAmount = muasPenalty; // Use the configurable penalty value
-            console.log(`Applying 'Muas' (No Loser) penalty (-${penaltyAmount.toFixed(1)}) to ALL players.`); // Changed log message
-
-            // **** THIS IS THE CORRECTED LOOP ****
-            for (const playerIdStr in scores) {
-                // Apply penalty to EVERY player (active or folded)
-                scores[playerIdStr].points -= penaltyAmount;
+        if (sneakerTeamSucceeded) {
+            const penaltyAmount = muasPenalty;
+            // This console.log is fine because it doesn't depend on external variables
+            console.log(`Applying 'Muas' penalty (-${penaltyAmount.toFixed(1)}) to folded players.`);
+            for (const player of gameState.players) {
+                if (player.status === PLAYER_STATUS.FOLDED) {
+                    scores[player.id].points -= penaltyAmount;
+                }
             }
         }
 
-        // // Clean up temporary status (No longer needed)
-        // for (const playerIdStr in scores) {
-        //      delete scores[playerIdStr]._status;
-        // }
-
         return scores;
-    }, // End calculateRoundScores
+    },
 
      // --- calculateAllWeiterScores (Uses dealerAnte) ---
      calculateAllWeiterScores(gameState, dealerAnte) {

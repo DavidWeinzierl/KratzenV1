@@ -686,6 +686,7 @@ body {
 
 /* Style for the top card (the actual trump determiner) */
 .trump-card-stacked.top-card {
-    left: 20%; /* The requested 20% offset to the right */
+    left: 30%; /* The requested 20% offset to the right */
+    top: 3%;
     z-index: 2; /* Ensures it's on top of the bottom card */
 }
