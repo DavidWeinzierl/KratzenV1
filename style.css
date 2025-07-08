@@ -17,7 +17,63 @@ body {
     --info-font-size: 1.5vh;
 }
 
+/* --- NEW: Hide game content by default --- */
+#game-board, #controls, #dynamic-buttons-master-container, #log-container, #simulation-container {
+    display: none;
+}
 
+/* --- NEW: Style for the start screen overlay --- */
+#start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #1a1a1a;
+    background-image: url('img/felt.png'); /* Optional: use same felt background */
+    background-size: 200px 200px;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #e0e0e0;
+    text-align: center;
+}
+
+#start-overlay h1 {
+    font-size: 4em;
+    margin-bottom: 20px;
+    color: #f5f5f5;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
+}
+
+#play-button {
+    padding: 15px 40px;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: white;
+    background-color: #5cb85c;
+    border: 2px solid #4cae4c;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+#play-button:hover {
+    background-color: #449d44;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+}
+
+.start-subtext {
+    margin-top: 30px;
+    font-size: 1em;
+    color: #b0b0b0;
+}
+
+/* --- Original game board styles (unchanged) --- */
 #game-board {
     border: 1px solid black;
     padding: 10px;
@@ -36,6 +92,7 @@ body {
     background-size: 200px 200px;
 }
 
+/* ... (the rest of your existing style.css content remains the same) ... */
 .player-area {
     border: 1px dashed rgba(220, 220, 220, 0.6);
     padding: 0.8vh;
@@ -73,15 +130,14 @@ body {
     transform: translateX(-50%);
 }
 
-/* --- FIX: Explicitly size the children of .player-area --- */
 .player-info, .player-hand {
-    display: inline-block; /* Allow them to sit side-by-side */
-    vertical-align: top;  /* Align them at the top */
+    display: inline-block; 
+    vertical-align: top; 
     box-sizing: border-box;
 }
 
 .player-info {
-    width: 30%; /* Assign a fixed percentage of the parent's width */
+    width: 30%; 
     text-align: left;
     font-size: var(--info-font-size);
     padding-right: 10px;
@@ -91,7 +147,6 @@ body {
 }
 
 .player-hand {
-    /* --- FIX: Assign the remaining width, ensuring it's stable --- */
     width: 70%; 
     padding-left: 5px;
     position: relative;
@@ -100,10 +155,8 @@ body {
 }
 
 .player-hand .card-image {
-    /* --- FIX: Use inline-block for the simple case (<=5 cards) --- */
-    /* This is overridden by JS for fanning, which is correct. */
     display: inline-block;
-    vertical-align: bottom; /* Align cards to the bottom of the hand area */
+    vertical-align: bottom; 
     margin-right: 5px;
     cursor: default;
 }
@@ -117,7 +170,6 @@ body {
     box-shadow: 0 0 8px 2px yellow;
 }
 
-
 #center-area {
     position: absolute;
     top: 50%;
@@ -129,7 +181,6 @@ body {
     width: auto;
     gap: 1.5vh;
 }
-
 
 #game-info {
     text-align: center;
@@ -153,7 +204,6 @@ body {
     width: 100%;
     gap: 2vw;
 }
-
 
 #trump-card-display {
     display: flex;
@@ -179,7 +229,6 @@ body {
     text-align: center;
 }
 
-
 #talon-display {
     display: flex;
     flex-direction: column;
@@ -199,7 +248,6 @@ body {
     width: 100%;
     text-align: center;
 }
-
 
 #trick-area {
     border: 1px solid rgba(0, 0, 255, 0.5);
@@ -244,7 +292,6 @@ body {
     box-shadow: 0 0 10px 3px gold !important;
 }
 
-
 .card-image-placeholder {
     width: var(--card-width);
     height: var(--card-height);
@@ -259,7 +306,6 @@ body {
     transition-timing-function: ease-in-out;
     transform-origin: center center;
 }
-
 
 #controls {
     width: 100%;
@@ -290,7 +336,6 @@ body {
 #controls button:hover, #controls button#hide-cards-toggle:hover {
     background-color: #5a6268;
 }
-
 
 #log-container {
     width: 90%;
@@ -340,11 +385,10 @@ body {
     color: #d20058;
     font-style: italic;
     font-weight: bold;
-    font-size: 1em; /* Corrected from 1 em */
+    font-size: 1em;
     margin-top: 5px !important;
 }
 
-/* Container for Next Step OR Player Choice Buttons */
 #action-buttons-container {
     margin-top: 10px;
     margin-bottom: 10px;
@@ -352,8 +396,8 @@ body {
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
-    min-height: 45px; /* Adjusted min-height for typical button */
-    padding: 5px 0; /* Add some padding */
+    min-height: 45px;
+    padding: 5px 0;
 }
 
 #dynamic-buttons-master-container {
@@ -362,13 +406,12 @@ body {
     display: flex;
     gap: 10px;
     justify-content: center;
-    align-items: center; /* Vertically align items if they have different heights */
+    align-items: center;
     flex-wrap: wrap;
-    min-height: 45px; /* Adjust as needed, or remove if not necessary */
+    min-height: 45px;
     padding: 5px 0;
 }
 
-/* General styling for buttons that will appear in #action-buttons-container */
 .action-button {
     padding: 8px 15px;
     font-size: 1em;
@@ -390,9 +433,8 @@ body {
     border-color: #bbbbbb;
 }
 
-/* Specific style for a Next Step button if it's placed in #action-buttons-container */
-.next-step-button-actionarea { /* New class if needed for specific styling */
-    background-color: #5cb85c; /* Green like original next step */
+.next-step-button-actionarea {
+    background-color: #5cb85c;
     color: white;
     border-color: #4cae4c;
 }
@@ -406,14 +448,13 @@ body {
     border-color: #bbbbbb;
 }
 
-
 #manual-action-confirm-container {
     margin-top: 5px;
     margin-bottom: 10px;
     display: flex;
     gap: 10px;
     justify-content: center;
-    min-height: 45px; /* Adjusted min-height */
+    min-height: 45px;
 }
 
 .confirm-action-button {
@@ -436,7 +477,6 @@ body {
     cursor: not-allowed;
     border-color: #bbbbbb;
 }
-
 
 #simulation-container {
     border: 1px solid #777;
@@ -526,7 +566,6 @@ body {
     word-break: break-all;
 }
 
-/* Bar Chart Styling */
 #simulation-chart-container {
     color: #e0e0e0;
 }
@@ -574,7 +613,6 @@ body {
 .bar-p2 { background-color: #d9534f; border-color: #d43f3a; }
 .bar-p3 { background-color: #5bc0de; border-color: #46b8da; }
 
-
 .bar-label {
     margin-top: 8px;
     font-size: 0.85em;
@@ -591,7 +629,6 @@ body {
     z-index: -1;
 }
 
-/* Progress Bar Styling */
 #simulation-progress-container {
     width: 100%;
     background-color: #555;
@@ -627,11 +664,9 @@ body {
     pointer-events: none;
 }
 
-/* ADD THESE STYLES TO THE END OF style.css */
-
 .strategy-row-header {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr; /* 3 columns: P0 | Label | Others */
+    grid-template-columns: 1fr 2fr 1fr;
     gap: 20px;
     align-items: center;
     width: 100%;
@@ -649,7 +684,7 @@ body {
 
 .strategy-row {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr; /* 3 columns: P0 | Label | Others */
+    grid-template-columns: 1fr 2fr 1fr;
     gap: 20px;
     align-items: center;
     width: 100%;
@@ -665,15 +700,14 @@ body {
 
 .strategy-row input[type="checkbox"],
 .strategy-row select {
-    justify-self: center; /* Center these controls within their column */
+    justify-self: center;
 }
 
-/* This container ensures the range slider and its value display stay together */
 .slider-with-value {
     display: flex;
     align-items: center;
     gap: 10px;
-    justify-self: stretch; /* Make it fill its column */
+    justify-self: stretch;
 }
 .slider-with-value input[type="range"] {
     flex-grow: 1;
@@ -683,38 +717,28 @@ body {
     text-align: right;
 }
 
-
-
-/* Make the trump display a positioning context for the stacked cards.
-   Adjust min-width to ensure the offset card fits without being clipped. */
-   #trump-card-display {
+#trump-card-display {
     position: relative;
-    /* min-width: 120px; -- This is now scalable */
 }
 
-/* Base style for any card that will be part of the stack */
 .trump-card-stacked {
     position: absolute;
     top: 0;
 }
 
-/* Style for the bottom card (the Weli) */
 .trump-card-stacked.bottom-card {
     left: 0;
-    z-index: 1; /* Ensures it's below the top card */
+    z-index: 1;
 }
 
-/* Style for the top card (the actual trump determiner) */
 .trump-card-stacked.top-card {
-    left: 30%; /* The requested 20% offset to the right */
+    left: 30%;
     top: 3%;
-    z-index: 2; /* Ensures it's on top of the bottom card */
+    z-index: 2;
 }
 
-/* --- ADD ALL OF THE FOLLOWING TO THE END OF style.css --- */
-
-/* --- Rotate Overlay --- */
-#rotate-overlay {
+/* --- Rotation Warning Overlay --- */
+#rotate-warning-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -733,7 +757,7 @@ body {
     box-sizing: border-box;
 }
 
-#rotate-overlay svg {
+#rotate-warning-overlay svg {
     width: 60px;
     height: 60px;
     margin-bottom: 20px;
@@ -747,30 +771,14 @@ body {
     100% { transform: rotate(0deg); }
 }
 
-
 /* --- Mobile-Specific Media Queries --- */
-
-/* Show the overlay ONLY when in portrait mode */
 @media (orientation: portrait) {
-    #rotate-overlay {
-        display: flex;
+    #rotate-warning-overlay {
+        display: flex; /* Show the warning in portrait mode */
     }
-
-    /* --- CRITICAL FIX: Hide the main content to fix zoom issue --- */
-    /* This prevents the wide game board from affecting the layout */
+    
+    /* Also ensure the game content is hidden in portrait */
     #game-board, #controls, #dynamic-buttons-master-container, #log-container, #simulation-container {
-        display: none;
-    }
-}
-
-
-
-/* Apply a 50% zoom on mobile devices in landscape mode */
-@media (max-width: 812px) and (orientation: landscape) {
-    body {
-        /* zoom is a non-standard but widely supported property 
-           that scales content and reflows the layout, which is
-           ideal for this test. */
-        zoom: 0.5;
+        display: none !important;
     }
 }

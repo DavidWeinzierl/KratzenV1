@@ -71,7 +71,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Loaded. Initializing Simulation.");
 
     await preloadCardImages();
+    
+    // --- NEW: START SCREEN LOGIC ---
+    const playButton = document.getElementById('play-button');
+    const startOverlay = document.getElementById('start-overlay');
+    
+    if (playButton && startOverlay) {
+        playButton.addEventListener('click', async () => {
+            // --- 1. Attempt to go fullscreen and lock orientation ---
+            const docEl = document.documentElement;
+            const orientationLockSupported = 'orientation' in screen && typeof screen.orientation.lock === 'function';
 
+            try {
+                if (docEl.requestFullscreen) {
+                    await docEl.requestFullscreen();
+                } else if (docEl.webkitRequestFullscreen) { // Safari
+                    await docEl.webkitRequestFullscreen();
+                }
+                
+                if (orientationLockSupported) {
+                    await screen.orientation.lock('landscape');
+                    logMessage("Entered fullscreen and locked orientation to landscape.");
+                } else {
+                    logMessage("Entered fullscreen, but orientation lock is not supported.");
+                }
+            } catch (err) {
+                logMessage(`Could not enter fullscreen or lock orientation: ${err.message}`);
+                console.error("Fullscreen/Lock Error:", err);
+            }
+
+            // --- 2. Hide start screen and show game content ---
+            startOverlay.style.display = 'none';
+            
+            // Set the correct display properties to make the game visible
+            document.getElementById('game-board').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+            document.getElementById('dynamic-buttons-master-container').style.display = 'flex';
+            document.getElementById('log-container').style.display = 'block';
+            document.getElementById('simulation-container').style.display = 'flex';
+            
+            // --- 3. Initialize and start the game logic ---
+            initializeGame();
+        });
+    } else {
+        // Fallback for development if the start screen is removed: immediately show content.
+        console.warn("#play-button or #start-overlay not found. Bypassing start screen.");
+        document.getElementById('game-board').style.display = 'block';
+        document.getElementById('controls').style.display = 'flex';
+        document.getElementById('dynamic-buttons-master-container').style.display = 'flex';
+        document.getElementById('log-container').style.display = 'block';
+        document.getElementById('simulation-container').style.display = 'flex';
+        initializeGame();
+    }
+    // --- END OF NEW START SCREEN LOGIC ---
+
+
+    // --- Setup for existing sliders and controls ---
     const animationSpeedSlider = document.getElementById('animation-speed-slider');
     const animationSpeedValueSpan = document.getElementById('animation-speed-value');
     const dealerAnteSlider = document.getElementById('dealer-ante-slider');
@@ -218,48 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupStrategyControl('consider-sau-if-planned-checkbox-others', null, 'otherPlayers', 'exchange', 'considerSauIfPlanned', true, false, false);
     
 
-    const fullscreenButton = document.getElementById('fullscreen-button');
-    if (fullscreenButton) {
-        // Check if the necessary APIs are supported by the browser
-        const fullscreenEnabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
-        const orientationLockSupported = 'orientation' in screen && typeof screen.orientation.lock === 'function';
-
-        if (fullscreenEnabled && orientationLockSupported) {
-            fullscreenButton.addEventListener('click', async () => {
-                const docEl = document.documentElement;
-
-                try {
-                    // First, request to go into fullscreen mode
-                    if (docEl.requestFullscreen) {
-                        await docEl.requestFullscreen();
-                    } else if (docEl.webkitRequestFullscreen) { /* Safari */
-                        await docEl.webkitRequestFullscreen();
-                    }
-
-                    // Once in fullscreen, try to lock the orientation to landscape
-                    // Using a try-catch block for the lock itself as it can fail
-                    try {
-                        await screen.orientation.lock('landscape');
-                        logMessage("Fullscreen enabled and orientation locked to landscape.");
-                    } catch (lockError) {
-                        // This might happen if the user's OS has an orientation lock on
-                        logMessage("Entered fullscreen, but could not lock orientation.");
-                        console.error("Orientation Lock Error:", lockError);
-                    }
-
-                } catch (err) {
-                    logMessage(`Error entering fullscreen mode: ${err.message}`);
-                    console.error("Fullscreen Request Error:", err);
-                }
-            });
-        } else {
-            // If APIs are not supported (e.g., on a desktop), hide the button.
-            fullscreenButton.style.display = 'none';
-        }
-    }
-
-    initializeGame();
-
+    // --- Simulation Controls ---
     const runSimButton = document.getElementById('run-simulation-button');
     const numGamesInput = document.getElementById('simulation-games-input');
     const resultsOutput = document.getElementById('simulation-results-output');
@@ -270,7 +284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressBarFill = document.getElementById('simulation-progress-bar-fill');
     const progressText = document.getElementById('simulation-progress-text');
 
-    if (runSimButton && numGamesInput && resultsOutput && resultsContainer && chartContainer && barChartArea && progressContainer && progressBarFill && progressText) {
+    if (runSimButton) {
         resultsContainer.style.display = 'block';
         chartContainer.style.display = 'block';
         resultsOutput.textContent = 'Run a simulation to see results.';
@@ -403,23 +417,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- ADDED: Event listener for Spacebar control ---
+    // --- Spacebar control ---
     document.addEventListener('keydown', (event) => {
-        // First, check if the user is currently focused on an input field.
         const activeElement = document.activeElement;
         if (activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
-            return; // Do nothing, let the user type a space.
+            return; 
         }
 
-        // Check if the pressed key is the Spacebar.
         if (event.code === 'Space') {
-            // Prevent the browser's default action (scrolling).
             event.preventDefault();
-
-            // Find the dynamically created "Next Step" or "Start New Round" button.
             const nextStepButton = document.getElementById('dynamic-next-step');
-
-            // If the button exists and is not disabled, trigger its click event.
             if (nextStepButton && !nextStepButton.disabled) {
                 nextStepButton.click();
             }

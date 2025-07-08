@@ -9,13 +9,20 @@
 </head>
 <body>
 
-    <!-- NEW: This overlay will show up in portrait mode -->
-    <div id="rotate-overlay">
+    <!-- NEW: This is the start screen overlay, visible on page load -->
+    <div id="start-overlay">
+        <h1>Kratzen</h1>
+        <button id="play-button">Play Game</button>
+        <p class="start-subtext">For the best experience, play in landscape mode.</p>
+    </div>
+
+    <!-- NEW: This overlay is now only for the rotation warning AFTER the game starts -->
+    <div id="rotate-warning-overlay">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="80" height="80" fill="currentColor">
             <path d="M0 0h24v24H0z" fill="none"/>
             <path d="M16.48 2.52c3.27 1.55 5.52 4.88 5.52 8.48s-2.25 6.93-5.52 8.48l-1.47-2.58c2.43-1.18 4-3.83 4-6.9 0-3.07-1.57-5.72-4-6.9L16.48 2.52zM4 12c0 3.07 1.57 5.72 4 6.9l1.47-2.58C7.04 15.14 5.99 13.68 6 12c0-1.68.59-3.22 1.5-4.32l-1.5-2.6A8.964 8.964 0 0 0 4 12zm7-7h2v5h-2V5zm-1.66 6.57L7.1 16.81l2.57-1.48.01-.01 1.48-2.57-2.59-1.47z"/>
         </svg>
-        <p>Please rotate your device to play.</p>
+        <p>Please rotate your device to landscape to play.</p>
     </div>
 
     <div id="game-board">
@@ -41,16 +48,14 @@
     </div>
 
     <div id="controls">
-        <!-- NEW: Fullscreen button -->
-        <button id="fullscreen-button" style="margin-right: 10px;">Fullscreen</button>
+        <!-- REMOVED: Fullscreen button is gone -->
         <button id="hide-cards-toggle" style="margin-right: 10px;">Karten anzeigen</button>
         <label style="margin-right: 10px;">
             <input type="checkbox" id="manual-mode-toggle" checked> Manual Mode
         </label>
-        <!-- "Next Step" button REMOVED from here -->
         <label for="animation-speed-slider" style="margin-left: 20px; margin-right: 5px;">Animation Speed:</label>
-        <input type="range" id="animation-speed-slider" min="1" max="10" step="1" value="9"> <!-- MODIFIED min, max, step, value -->
-        <span id="animation-speed-value" style="width: 30px; display: inline-block; text-align: right;">5</span> <!-- MODIFIED initial display -->
+        <input type="range" id="animation-speed-slider" min="1" max="10" step="1" value="9">
+        <span id="animation-speed-value" style="width: 30px; display: inline-block; text-align: right;">5</span>
     </div>
 
     <div id="dynamic-buttons-master-container">
