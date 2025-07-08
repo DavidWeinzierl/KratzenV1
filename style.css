@@ -762,3 +762,15 @@ body {
         display: none;
     }
 }
+
+
+
+/* Apply a 50% zoom on mobile devices in landscape mode */
+@media (max-width: 812px) and (orientation: landscape) {
+    body {
+        /* zoom is a non-standard but widely supported property 
+           that scales content and reflows the layout, which is
+           ideal for this test. */
+        zoom: 0.5;
+    }
+}
