@@ -144,7 +144,7 @@ body {
 }
 
 #settings-column {
-    flex-basis: 280px;
+    flex-basis: 100px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
