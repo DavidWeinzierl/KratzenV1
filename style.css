@@ -5,36 +5,45 @@ body {
     align-items: center;
     background-color: #292828;
     color: #e0e0e0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin: 0;
 }
+
+:root {
+    --card-height: 11.5vh;
+    --card-width: calc(var(--card-height) * 0.67);
+    --base-font-size: 1.8vh;
+    --info-font-size: 1.5vh;
+}
+
 
 #game-board {
     border: 1px solid black;
     padding: 10px;
     margin-bottom: 10px;
     position: relative;
-    width: 1600px;
-    height: 700px;
     box-sizing: border-box;
-
+    width: 98vw;
+    height: 75vh;
+    max-width: 1800px;
+    max-height: 900px;
     background-image: url('img/felt.png');
     background-repeat: repeat;
     background-color: #006400;
     border-radius: 25px;
     overflow: hidden;
-
     background-size: 200px 200px;
 }
 
 .player-area {
     border: 1px dashed rgba(220, 220, 220, 0.6);
-    padding: 8px;
-    min-height: 140px;
-
+    padding: 0.8vh;
+    min-height: calc(var(--card-height) + 2vh);
     width: 38%;
     position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 15px;
+    /* --- FIX: Change from flex to a more stable block layout --- */
+    display: block; 
     box-sizing: border-box;
     background-color: rgba(245, 245, 245, 0.5);
     color: #333;
@@ -46,7 +55,6 @@ body {
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    justify-content: center;
 }
 
 .player-area-left {
@@ -63,33 +71,39 @@ body {
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    justify-content: center;
+}
+
+/* --- FIX: Explicitly size the children of .player-area --- */
+.player-info, .player-hand {
+    display: inline-block; /* Allow them to sit side-by-side */
+    vertical-align: top;  /* Align them at the top */
+    box-sizing: border-box;
 }
 
 .player-info {
-    flex-basis: 160px;
-    flex-shrink: 0;
+    width: 30%; /* Assign a fixed percentage of the parent's width */
     text-align: left;
-    font-size: 0.9em;
+    font-size: var(--info-font-size);
     padding-right: 10px;
 }
 .player-info p {
-    margin: 3px 0;
+    margin: 0.4vh 0;
 }
 
 .player-hand {
-    display: flex;
-    flex-grow: 1;
-    justify-content: flex-start;
+    /* --- FIX: Assign the remaining width, ensuring it's stable --- */
+    width: 70%; 
     padding-left: 5px;
     position: relative;
-    width: 380px;
-    height: 120px;
+    height: var(--card-height);
     overflow: visible;
 }
 
 .player-hand .card-image {
-    position: relative;
+    /* --- FIX: Use inline-block for the simple case (<=5 cards) --- */
+    /* This is overridden by JS for fanning, which is correct. */
+    display: inline-block;
+    vertical-align: bottom; /* Align cards to the bottom of the hand area */
     margin-right: 5px;
     cursor: default;
 }
@@ -113,7 +127,7 @@ body {
     flex-direction: column;
     align-items: center;
     width: auto;
-    gap: 10px;
+    gap: 1.5vh;
 }
 
 
@@ -122,9 +136,9 @@ body {
     border: 1px solid #ccc;
     background-color: rgba(255, 255, 255, 0.382);
     color: #333;
-    padding: 8px 12px;
-    min-width: 300px;
-    min-height: 130px;
+    padding: 1vh 1.2vw;
+    min-width: 15vw;
+    min-height: calc(var(--card-height) + 2vh);
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     display: flex;
@@ -137,7 +151,7 @@ body {
     justify-content: center;
     align-items: flex-start;
     width: 100%;
-    gap: 20px;
+    gap: 2vw;
 }
 
 
@@ -146,11 +160,11 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    min-height: 115px;
+    min-height: calc(var(--card-height) + 1vh);
     justify-content: flex-start;
     color: #333;
-    font-size: 0.9em;
-    width: 100px;
+    font-size: var(--info-font-size);
+    width: calc(var(--card-width) + 2vw);
 }
 
 #trump-card-display .card-image {
@@ -171,11 +185,11 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    min-height: 115px;
+    min-height: calc(var(--card-height) + 1vh);
     justify-content: flex-start;
     color: #333;
-    font-size: 0.9em;
-    width: 100px;
+    font-size: var(--info-font-size);
+    width: calc(var(--card-width) + 2vw);
 }
 
 .talon-count-label {
@@ -189,14 +203,14 @@ body {
 
 #trick-area {
     border: 1px solid rgba(0, 0, 255, 0.5);
-    min-width: 300px;
-    min-height: 130px;
+    min-width: 16vw;
+    min-height: calc(var(--card-height) + 2vh);
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 0.8vw;
     background-color: rgba(173, 216, 230, 0.7);
-    padding: 8px;
+    padding: 1vh;
     border-radius: 12px;
 }
 
@@ -216,8 +230,8 @@ body {
 }
 
 .card-image {
-    width: 72px;
-    height: 108px;
+    width: var(--card-width);
+    height: var(--card-height);
     border: 1px solid #666;
     border-radius: 4px;
     box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
@@ -232,8 +246,8 @@ body {
 
 
 .card-image-placeholder {
-    width: 72px;
-    height: 108px;
+    width: var(--card-width);
+    height: var(--card-height);
     display: block;
 }
 
@@ -248,16 +262,21 @@ body {
 
 
 #controls {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    flex-wrap: nowrap;
     margin: 15px 0;
     display: flex;
     gap: 10px;
     align-items: center;
     color: #e0e0e0;
+    justify-content: center;
 }
 #controls label {
      color: #e0e0e0;
 }
-#controls button#hide-cards-toggle {
+#controls button, #controls button#hide-cards-toggle {
     background-color: #6c757d;
     color: white;
     padding: 8px 12px;
@@ -266,8 +285,9 @@ body {
     cursor: pointer;
     font-size: 0.9em;
     transition: background-color 0.2s ease;
+    flex-shrink: 0;
 }
-#controls button#hide-cards-toggle:hover {
+#controls button:hover, #controls button#hide-cards-toggle:hover {
     background-color: #5a6268;
 }
 
@@ -669,7 +689,7 @@ body {
    Adjust min-width to ensure the offset card fits without being clipped. */
    #trump-card-display {
     position: relative;
-    min-width: 120px; 
+    /* min-width: 120px; -- This is now scalable */
 }
 
 /* Base style for any card that will be part of the stack */
@@ -691,6 +711,7 @@ body {
     z-index: 2; /* Ensures it's on top of the bottom card */
 }
 
+/* --- ADD ALL OF THE FOLLOWING TO THE END OF style.css --- */
 
 /* --- Rotate Overlay --- */
 #rotate-overlay {
@@ -734,87 +755,10 @@ body {
     #rotate-overlay {
         display: flex;
     }
-}
 
-/* Adjustments for SMALLER LANDSCAPE screens (e.g., phones) */
-@media (max-width: 900px) and (orientation: landscape) {
-
-    /* Make the game board fit the screen height */
-    #game-board {
-        width: 100%;
-        height: 98vh; /* Use almost full viewport height */
-        padding: 5px;
-        border-radius: 0;
-        min-height: 480px;
-    }
-
-    /* Reduce card sizes */
-    .card-image {
-        width: 60px;  /* from 72px */
-        height: 90px; /* from 108px */
-    }
-
-    .card-image-placeholder {
-        width: 60px;
-        height: 90px;
-    }
-
-    /* Adjust player areas for smaller cards */
-    .player-area {
-        min-height: 110px; /* from 140px */
-        gap: 5px;
-        padding: 4px;
-        width: 35%; /* slightly reduce width */
-    }
-
-    .player-hand {
-        height: 95px; /* from 120px */
-        width: 280px; /* from 380px */
-    }
-    
-    .player-info {
-        font-size: 0.8em;
-        flex-basis: 110px; /* from 160px */
-    }
-
-    #center-area {
-        gap: 5px;
-    }
-
-    /* Adjust center info/trick areas */
-    #game-info, #trick-area {
-        min-width: 240px; /* from 300px */
-        min-height: 110px; /* from 130px */
-        padding: 5px;
-    }
-
-    #trump-card-display, #talon-display {
-        min-height: 95px; /* from 115px */
-        width: 80px; /* from 100px */
-    }
-    
-    #trump-card-display {
-        min-width: 95px; /* from 120px */
-    }
-
-    /* Reduce font size on controls and make them wrap */
-    #controls {
-        font-size: 0.9em;
-        margin: 5px 0;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    /* Make log/sim area scrollable if it overflows */
-    body {
-        overflow-x: hidden; /* Prevent horizontal scroll */
-    }
-    
-    #simulation-container, #log-container {
-        width: 95%; /* Use more width */
-    }
-
-    #dynamic-buttons-master-container {
-        margin-bottom: 20px;
+    /* --- CRITICAL FIX: Hide the main content to fix zoom issue --- */
+    /* This prevents the wide game board from affecting the layout */
+    #game-board, #controls, #dynamic-buttons-master-container, #log-container, #simulation-container {
+        display: none;
     }
 }

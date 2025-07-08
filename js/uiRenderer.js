@@ -196,13 +196,11 @@ function createCardElement(cardData, isSelectable = false, isSelected = false, i
 }
 
 
-
 export function renderGame(gameState) {
     if (isSimulationRunning) {
         return;
     }
 
-    // Get the single master container for all dynamic buttons
     const dynamicButtonsMasterContainer = document.getElementById('dynamic-buttons-master-container');
 
     if (!gameState) {
@@ -241,18 +239,17 @@ export function renderGame(gameState) {
         return;
     }
 
-    // Clear the master button container
     if (dynamicButtonsMasterContainer) {
         dynamicButtonsMasterContainer.innerHTML = ''; 
     } else {
         console.error("#dynamic-buttons-master-container not found!");
-        return; // Cannot proceed if container is missing
+        return;
     }
-
 
     const manualPlayerId = 0;
     const isP0TurnForManualAction = isManualBiddingMode && gameState.turnPlayerIndex === manualPlayerId;
 
+    // *** FIX: Refactored player hand rendering logic is inside this loop ***
     gameState.players.forEach((player, index) => {
         const playerArea = document.getElementById(`player-area-${index}`);
         if (!playerArea) return;
@@ -298,12 +295,20 @@ export function renderGame(gameState) {
 
         const handDiv = document.createElement('div');
         handDiv.classList.add('player-hand');
+        playerArea.appendChild(handDiv); 
+        
         const hand = player.hand || [];
         const cardCount = hand.length;
-        const fanThreshold = 5;
-        const cardWidth = 72;
-        const handContainerWidth = 380;
+        
+        if (cardCount === 0) {
+            return; // No cards to render, continue to next player
+        }
+        
+        // --- START OF REFACTORED RENDERING ---
 
+        // Step 1: Determine if fanning is needed and get valid plays for P0
+        const fanThreshold = 5;
+        const needsFanning = cardCount > fanThreshold;
         let p0CardsAreSelectable = false;
         let p0CardsArePlayableNow = false;
         let validPlaysForP0 = [];
@@ -316,46 +321,63 @@ export function renderGame(gameState) {
                 validPlaysForP0 = GameRules.getValidPlays(gameState, player);
             }
         }
+        
+        // Step 2: Create all card elements and add them to the DOM first.
+        const cardElements = [];
+        hand.forEach((cardData) => {
+            if (cardData) {
+                const showFace = player.id === manualPlayerId || !areOtherPlayersCardsHidden;
+                const cardToDisplay = showFace ? cardData : null;
+                let isThisCardSelected = false;
+                let isThisCardPlayableByRule = false;
 
-        if (cardCount > 0) {
-            hand.forEach((cardData, i) => {
-                if (cardData) {
-                    const showFace = player.id === manualPlayerId || !areOtherPlayersCardsHidden;
-                    const cardToDisplay = showFace ? cardData : null;
-                    let isThisCardSelected = false;
-                    let isThisCardPlayableByRule = false;
+                if (player.id === manualPlayerId && isP0TurnForManualAction) {
+                    if (p0CardsAreSelectable && selectedCardsForManualAction) {
+                        isThisCardSelected = selectedCardsForManualAction.some(selCard => selCard.key === cardData.key);
+                    }
+                    if (p0CardsArePlayableNow) {
+                        isThisCardPlayableByRule = validPlaysForP0.some(vp => vp.key === cardData.key);
+                    }
+                }
+                const cardEl = createCardElement(cardToDisplay, p0CardsAreSelectable, isThisCardSelected, isThisCardPlayableByRule);
 
-                    if (player.id === manualPlayerId && isP0TurnForManualAction) {
-                        if (p0CardsAreSelectable && selectedCardsForManualAction) {
-                            isThisCardSelected = selectedCardsForManualAction.some(selCard => selCard.key === cardData.key);
-                        }
-                        if (p0CardsArePlayableNow) {
-                            isThisCardPlayableByRule = validPlaysForP0.some(vp => vp.key === cardData.key);
-                        }
+                if (player.id === manualPlayerId && isP0TurnForManualAction) {
+                    if (p0CardsAreSelectable) {
+                        cardEl.addEventListener('click', () => handleManualCardSelectionForDiscardExchange(cardData));
+                    } else if (p0CardsArePlayableNow && isThisCardPlayableByRule) {
+                        cardEl.addEventListener('click', () => handleManualCardPlay(cardData));
                     }
-                    const cardEl = createCardElement(cardToDisplay, p0CardsAreSelectable, isThisCardSelected, isThisCardPlayableByRule);
+                }
 
-                    if (player.id === manualPlayerId && isP0TurnForManualAction) {
-                        if (p0CardsAreSelectable) {
-                            cardEl.addEventListener('click', () => handleManualCardSelectionForDiscardExchange(cardData));
-                        } else if (p0CardsArePlayableNow && isThisCardPlayableByRule) {
-                            cardEl.addEventListener('click', () => handleManualCardPlay(cardData));
-                        }
-                    }
-                    if (cardCount > fanThreshold) {
-                        const minVisiblePartOfCard = cardWidth * 0.25;
-                        let cardSpacing = (handContainerWidth - cardWidth) / (cardCount - 1);
-                        cardSpacing = Math.max(cardSpacing, minVisiblePartOfCard);
-                        cardEl.style.position = 'absolute';
-                        cardEl.style.bottom = '0px';
-                        cardEl.style.left = `${i * cardSpacing}px`;
-                        cardEl.style.zIndex = i;
-                    }
-                    handDiv.appendChild(cardEl);
-                } else { console.warn(`Player ${player.name} has an invalid card in hand.`); }
-            });
+                handDiv.appendChild(cardEl);
+                cardElements.push(cardEl);
+            } else { console.warn(`Player ${player.name} has an invalid card in hand.`); }
+        });
+
+        // Step 3: If fanning is needed, now measure and apply absolute positions.
+        if (needsFanning && cardElements.length > 0) {
+            const cardWidth = cardElements[0].offsetWidth; 
+            const handContainerWidth = handDiv.offsetWidth;
+
+            if (handContainerWidth > 0 && cardWidth > 0) {
+                // *** THE FIX: Reserve space on the right side ***
+                const fanningRightMargin = cardWidth * 0.5; // Reserve 15px of space on the right
+                const minVisiblePartOfCard = cardWidth * 0.25;
+                let cardSpacing = (handContainerWidth - cardWidth - fanningRightMargin) / (cardCount - 1);
+                cardSpacing = Math.max(cardSpacing, minVisiblePartOfCard);
+
+                // Now loop through the ALREADY RENDERED elements and apply positioning
+                cardElements.forEach((cardEl, i) => {
+                    cardEl.style.position = 'absolute';
+                    cardEl.style.bottom = '0px';
+                    cardEl.style.zIndex = i;
+                    cardEl.style.left = `${i * cardSpacing}px`;
+                });
+            } else {
+                 logUIMessage(`Warning: Could not get valid width for hand/card to apply fanning for ${player.name}.`);
+            }
         }
-        playerArea.appendChild(handDiv);
+        // --- END OF REFACTORED RENDERING ---
     });
 
 
@@ -364,32 +386,24 @@ export function renderGame(gameState) {
     if (trumpCardDisplayEl && talonDisplayEl) {
         trumpCardDisplayEl.innerHTML = '';
 
-        // --- START OF MODIFIED TRUMP DISPLAY LOGIC ---
-        // Check for the special case where Weli was turned up first.
         if (gameState.originalTrumpCard && gameState.originalTrumpCard.rank === WELI_RANK && gameState.trumpCard) {
-            // Create and style the Weli element (bottom card)
             const weliEl = createCardElement(gameState.originalTrumpCard);
             weliEl.classList.add('trump-card-stacked', 'bottom-card');
             
-            // Create and style the actual trump card element (top card)
             const actualTrumpEl = createCardElement(gameState.trumpCard);
             actualTrumpEl.classList.add('trump-card-stacked', 'top-card');
 
-            // Add both to the display container
             trumpCardDisplayEl.appendChild(weliEl);
             trumpCardDisplayEl.appendChild(actualTrumpEl);
 
         } else if (gameState.trumpCard && gameState.trumpSuit) {
-            // This is the normal case: just one trump card to display.
             const cardEl = createCardElement(gameState.trumpCard);
             trumpCardDisplayEl.appendChild(cardEl);
         } else {
-            // This is the placeholder case for before the game starts.
             const cardPlaceholder = document.createElement('div');
             cardPlaceholder.classList.add('card-image-placeholder');
             trumpCardDisplayEl.appendChild(cardPlaceholder);
         }
-        // --- END OF MODIFIED TRUMP DISPLAY LOGIC ---
 
         const suitLabel = document.createElement('div');
         suitLabel.classList.add('trump-suit-label');
@@ -436,8 +450,6 @@ export function renderGame(gameState) {
         if (p0Area) p0Area.classList.add('turn-highlight');
     }
 
-
-    // --- Render Action Buttons into #dynamic-buttons-master-container ---
     let p0NeedsToMakeChoice = false;
     if (isP0TurnForManualAction) {
         if (gameState.isWaitingForBidInput && gameState.pendingValidBids.length > 0) {
@@ -447,7 +459,7 @@ export function renderGame(gameState) {
                 button.textContent = bidOption;
                 button.classList.add('action-button');
                 button.addEventListener('click', () => handleUserBid(bidOption));
-                dynamicButtonsMasterContainer.appendChild(button); // Use new container
+                dynamicButtonsMasterContainer.appendChild(button);
             });
         } else if (gameState.isWaitingForManualDiscardSelection) {
             p0NeedsToMakeChoice = true;
@@ -456,7 +468,7 @@ export function renderGame(gameState) {
             button.classList.add('confirm-action-button');
             button.disabled = !selectedCardsForManualAction || selectedCardsForManualAction.length !== gameState.numCardsToDiscardManually;
             button.addEventListener('click', handleConfirmManualDiscard);
-            dynamicButtonsMasterContainer.appendChild(button); // Use new container
+            dynamicButtonsMasterContainer.appendChild(button);
         } else if (gameState.isWaitingForManualExchangeChoice) {
             p0NeedsToMakeChoice = true;
             const playerP0 = gameState.players[manualPlayerId];
@@ -497,7 +509,7 @@ export function renderGame(gameState) {
                     button.classList.add('action-button');
                     button.dataset.exchangeType = opt.type;
                     button.addEventListener('click', () => handleManualExchangeTypeSelection(opt.type));
-                    dynamicButtonsMasterContainer.appendChild(button); // Use new container
+                    dynamicButtonsMasterContainer.appendChild(button);
                 }
             });
         } else if (gameState.isWaitingForManualExchangeCardSelection) {
@@ -508,13 +520,13 @@ export function renderGame(gameState) {
             const cardsSelectedCount = selectedCardsForManualAction ? selectedCardsForManualAction.length : 0;
             button.disabled = cardsSelectedCount < 0 || cardsSelectedCount > 4;
             button.addEventListener('click', handleConfirmManualStandardExchange);
-            dynamicButtonsMasterContainer.appendChild(button); // Use new container
+            dynamicButtonsMasterContainer.appendChild(button);
         } else if (gameState.isWaitingForManualPlay) {
             p0NeedsToMakeChoice = true; 
             const hintButton = document.createElement('button');
             hintButton.textContent = "Click on card to play";
-            hintButton.classList.add('action-button', 'disabled-hint-button'); // Add a new class for styling
-            hintButton.disabled = true; // Make it non-interactive
+            hintButton.classList.add('action-button', 'disabled-hint-button');
+            hintButton.disabled = true;
             dynamicButtonsMasterContainer.appendChild(hintButton);
         }
     }
@@ -526,7 +538,7 @@ export function renderGame(gameState) {
         nextStepBtn.classList.add('action-button', 'next-step-button-actionarea');
         nextStepBtn.addEventListener('click', nextStep);
         nextStepBtn.disabled = gameState.isAnimating;
-        dynamicButtonsMasterContainer.appendChild(nextStepBtn); // Use new container
+        dynamicButtonsMasterContainer.appendChild(nextStepBtn);
     } else if (gameState.phase === GAME_PHASE.ROUND_END && !isSimulationRunning) {
         const nextStepBtn = document.createElement('button');
         nextStepBtn.textContent = "Start New Round";
@@ -534,6 +546,6 @@ export function renderGame(gameState) {
         nextStepBtn.classList.add('action-button', 'next-step-button-actionarea');
         nextStepBtn.addEventListener('click', nextStep);
         nextStepBtn.disabled = gameState.isAnimating;
-        dynamicButtonsMasterContainer.appendChild(nextStepBtn); // Use new container
+        dynamicButtonsMasterContainer.appendChild(nextStepBtn);
     }
 }
