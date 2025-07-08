@@ -17,12 +17,10 @@ body {
     --info-font-size: 1.5vh;
 }
 
-/* --- NEW: Hide game content by default --- */
-#game-board, #controls, #dynamic-buttons-master-container, #log-container, #simulation-container {
+#game-board, #main-controls-container, #log-container, #simulation-container {
     display: none;
 }
 
-/* --- NEW: Style for the start screen overlay --- */
 #start-overlay {
     position: fixed;
     top: 0;
@@ -30,7 +28,7 @@ body {
     width: 100vw;
     height: 100vh;
     background-color: #1a1a1a;
-    background-image: url('img/felt.png'); /* Optional: use same felt background */
+    background-image: url('img/felt.png'); 
     background-size: 200px 200px;
     z-index: 3000;
     display: flex;
@@ -73,7 +71,6 @@ body {
     color: #b0b0b0;
 }
 
-/* --- Original game board styles (unchanged) --- */
 #game-board {
     border: 1px solid black;
     padding: 10px;
@@ -92,14 +89,12 @@ body {
     background-size: 200px 200px;
 }
 
-/* ... (the rest of your existing style.css content remains the same) ... */
 .player-area {
     border: 1px dashed rgba(220, 220, 220, 0.6);
     padding: 0.8vh;
     min-height: calc(var(--card-height) + 2vh);
     width: 38%;
     position: absolute;
-    /* --- FIX: Change from flex to a more stable block layout --- */
     display: block; 
     box-sizing: border-box;
     background-color: rgba(245, 245, 245, 0.5);
@@ -108,677 +103,153 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.player-area-top {
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-}
+.player-area-top { top: 10px; left: 50%; transform: translateX(-50%); }
+.player-area-left { top: 50%; left: 10px; transform: translateY(-50%); }
+.player-area-right { top: 50%; right: 10px; transform: translateY(-50%); }
+.player-area-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
 
-.player-area-left {
-    top: 50%;
-    left: 10px;
-    transform: translateY(-50%);
-}
-.player-area-right {
-    top: 50%;
-    right: 10px;
-    transform: translateY(-50%);
-}
-.player-area-bottom {
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-}
+.player-info, .player-hand { display: inline-block; vertical-align: top; box-sizing: border-box; }
+.player-info { width: 30%; text-align: left; font-size: var(--info-font-size); padding-right: 10px; }
+.player-info p { margin: 0.4vh 0; }
+.player-hand { width: 70%; padding-left: 5px; position: relative; height: var(--card-height); overflow: visible; }
+.player-hand .card-image { display: inline-block; vertical-align: bottom; margin-right: 5px; cursor: default; }
+.player-hand .card-image.manual-playable { cursor: pointer; filter: brightness(1.1); }
+.player-hand .card-image.manual-playable:hover { filter: brightness(1.25); box-shadow: 0 0 8px 2px yellow; }
 
-.player-info, .player-hand {
-    display: inline-block; 
-    vertical-align: top; 
+#center-area { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; width: auto; gap: 1.5vh; }
+#game-info { text-align: center; border: 1px solid #ccc; background-color: rgba(255, 255, 255, 0.382); color: #333; padding: 1vh 1.2vw; min-width: 15vw; min-height: calc(var(--card-height) + 2vh); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); display: flex; justify-content: center; align-items: center; }
+.game-info-content { display: flex; justify-content: center; align-items: flex-start; width: 100%; gap: 2vw; }
+#trump-card-display { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: calc(var(--card-height) + 1vh); justify-content: flex-start; color: #333; font-size: var(--info-font-size); width: calc(var(--card-width) + 2vw); }
+#trump-card-display .card-image { margin-bottom: 0; }
+.trump-suit-label { font-weight: bold; margin-top: 2px; color: #333; width: 100%; text-align: center; }
+#talon-display { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: calc(var(--card-height) + 1vh); justify-content: flex-start; color: #333; font-size: var(--info-font-size); width: calc(var(--card-width) + 2vw); }
+.talon-count-label { font-weight: bold; margin-top: 2px; color: #333; width: 100%; text-align: center; }
+#trick-area { border: 1px solid rgba(0, 0, 255, 0.5); min-width: 16vw; min-height: calc(var(--card-height) + 2vh); display: flex; justify-content: center; align-items: center; gap: 0.8vw; background-color: rgba(173, 216, 230, 0.7); padding: 1vh; border-radius: 12px; }
+.trick-card-container { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.trick-card-player { font-size: 0.75em; color: #333; background-color: rgba(255, 255, 255, 0.7); padding: 0 3px; border-radius: 3px; }
+.card-image { width: var(--card-width); height: var(--card-height); border: 1px solid #666; border-radius: 4px; box-shadow: 1px 1px 3px rgba(0,0,0,0.3); background-color: #eee; display: block; }
+.card-image.card-selected { border: 3px solid gold !important; box-shadow: 0 0 10px 3px gold !important; }
+.card-image-placeholder { width: var(--card-width); height: var(--card-height); display: block; }
+.flying-card { position: absolute; z-index: 1000; opacity: 1; transition-property: transform, opacity; transition-timing-function: ease-in-out; transform-origin: center center; }
+
+#main-controls-container {
+    width: 100%;
+    margin: 20px 0;
+    padding: 0 5%;
     box-sizing: border-box;
-}
-
-.player-info {
-    width: 30%; 
-    text-align: left;
-    font-size: var(--info-font-size);
-    padding-right: 10px;
-}
-.player-info p {
-    margin: 0.4vh 0;
-}
-
-.player-hand {
-    width: 70%; 
-    padding-left: 5px;
-    position: relative;
-    height: var(--card-height);
-    overflow: visible;
-}
-
-.player-hand .card-image {
-    display: inline-block;
-    vertical-align: bottom; 
-    margin-right: 5px;
-    cursor: default;
-}
-
-.player-hand .card-image.manual-playable {
-    cursor: pointer;
-    filter: brightness(1.1);
-}
-.player-hand .card-image.manual-playable:hover {
-    filter: brightness(1.25);
-    box-shadow: 0 0 8px 2px yellow;
-}
-
-#center-area {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: auto;
-    gap: 1.5vh;
-}
-
-#game-info {
-    text-align: center;
-    border: 1px solid #ccc;
-    background-color: rgba(255, 255, 255, 0.382);
-    color: #333;
-    padding: 1vh 1.2vw;
-    min-width: 15vw;
-    min-height: calc(var(--card-height) + 2vh);
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.game-info-content {
-    display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: flex-start;
-    width: 100%;
-    gap: 2vw;
+    gap: 30px;
 }
 
-#trump-card-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    min-height: calc(var(--card-height) + 1vh);
-    justify-content: flex-start;
-    color: #333;
-    font-size: var(--info-font-size);
-    width: calc(var(--card-width) + 2vw);
-}
-
-#trump-card-display .card-image {
-     margin-bottom: 0;
-}
-
-.trump-suit-label {
-    font-weight: bold;
-    margin-top: 2px;
-    color: #333;
-    width: 100%;
-    text-align: center;
-}
-
-#talon-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    min-height: calc(var(--card-height) + 1vh);
-    justify-content: flex-start;
-    color: #333;
-    font-size: var(--info-font-size);
-    width: calc(var(--card-width) + 2vw);
-}
-
-.talon-count-label {
-    font-weight: bold;
-    margin-top: 2px;
-    color: #333;
-    width: 100%;
-    text-align: center;
-}
-
-#trick-area {
-    border: 1px solid rgba(0, 0, 255, 0.5);
-    min-width: 16vw;
-    min-height: calc(var(--card-height) + 2vh);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.8vw;
-    background-color: rgba(173, 216, 230, 0.7);
-    padding: 1vh;
-    border-radius: 12px;
-}
-
-.trick-card-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-}
-
-.trick-card-player {
-    font-size: 0.75em;
-    color: #333;
-    background-color: rgba(255, 255, 255, 0.7);
-    padding: 0 3px;
-    border-radius: 3px;
-}
-
-.card-image {
-    width: var(--card-width);
-    height: var(--card-height);
-    border: 1px solid #666;
-    border-radius: 4px;
-    box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-    background-color: #eee;
-    display: block;
-}
-
-.card-image.card-selected {
-    border: 3px solid gold !important;
-    box-shadow: 0 0 10px 3px gold !important;
-}
-
-.card-image-placeholder {
-    width: var(--card-width);
-    height: var(--card-height);
-    display: block;
-}
-
-.flying-card {
-    position: absolute;
-    z-index: 1000;
-    opacity: 1;
-    transition-property: transform, opacity;
-    transition-timing-function: ease-in-out;
-    transform-origin: center center;
-}
-
-#controls {
-    width: 100%;
-    overflow-x: auto;
-    padding-bottom: 10px;
-    flex-wrap: nowrap;
-    margin: 15px 0;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    color: #e0e0e0;
-    justify-content: center;
-}
-#controls label {
-     color: #e0e0e0;
-}
-#controls button, #controls button#hide-cards-toggle {
-    background-color: #6c757d;
-    color: white;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9em;
-    transition: background-color 0.2s ease;
+#settings-column {
+    flex-basis: 280px;
     flex-shrink: 0;
-}
-#controls button:hover, #controls button#hide-cards-toggle:hover {
-    background-color: #5a6268;
-}
-
-#log-container {
-    width: 90%;
-    max-width: 1100px;
-    border: 1px solid #999;
-    margin-top: 15px;
-    background-color: #313131;
-     border-radius: 8px;
-     overflow: hidden;
-}
-#log-box {
-    height: 180px;
-    overflow-y: scroll;
-    padding: 8px;
-    background-color: #292828;
-    color: #b3b3b3;
-    font-size: 0.9em;
-}
-#log-box p {
-    margin: 2px 0;
-    padding: 1px 0;
-    border-bottom: 1px dotted #ddd;
-}
-#log-box p:last-child {
-    border-bottom: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
 }
 
-.turn-highlight {
-    box-shadow: 0 0 10px 3px gold !important;
-    border-color: gold !important;
-}
-
-.dealer-indicator {
-    color: #b22222;
-    font-weight: bold;
-    font-size: 0.9em;
-    margin-left: 5px;
-}
-
-.tricks-highlight {
-    color: #d9534f;
-    font-weight: bold;
+#settings-column h3 {
+    margin: 0 0 10px 0;
+    width: 100%;
+    text-align: left;
+    color: #ccc;
     font-size: 1.1em;
 }
 
-.player-action-log {
-    color: #d20058;
-    font-style: italic;
-    font-weight: bold;
-    font-size: 1em;
-    margin-top: 5px !important;
-}
-
-#action-buttons-container {
-    margin-top: 10px;
-    margin-bottom: 10px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-    min-height: 45px;
-    padding: 5px 0;
-}
+.setting-item { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
+.setting-item label { margin-bottom: 5px; }
+#settings-column button#hide-cards-toggle { width: 100%; background-color: #6c757d; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: background-color 0.2s ease; }
+#settings-column button#hide-cards-toggle:hover { background-color: #5a6268; }
+.slider-wrapper { display: flex; align-items: center; width: 100%; gap: 10px; }
+.slider-wrapper input[type="range"] { flex-grow: 1; }
+.slider-wrapper span { width: 30px; text-align: right; }
 
 #dynamic-buttons-master-container {
+    flex-grow: 1;
     margin-top: 10px;
-    margin-bottom: 100px;
+    margin-bottom: 10px;
     display: flex;
     gap: 10px;
     justify-content: center;
     align-items: center;
     flex-wrap: wrap;
-    min-height: 45px;
+    min-height: 80px;
     padding: 5px 0;
-}
-
-.action-button {
-    padding: 8px 15px;
-    font-size: 1em;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-    border: 1px solid #999;
-    background-color: #e0e0e0;
-    color: #333;
-}
-.action-button:hover {
-    background-color: #d0d0d0;
-    border-color: #777;
-}
-.action-button:disabled {
-    background-color: #cccccc;
-    color: #888888;
-    cursor: not-allowed;
-    border-color: #bbbbbb;
-}
-
-.next-step-button-actionarea {
-    background-color: #5cb85c;
-    color: white;
-    border-color: #4cae4c;
-}
-.next-step-button-actionarea:hover {
-    background-color: #449d44;
-}
-.next-step-button-actionarea:disabled {
-    background-color: #cccccc;
-    color: #888888;
-    cursor: not-allowed;
-    border-color: #bbbbbb;
-}
-
-#manual-action-confirm-container {
-    margin-top: 5px;
-    margin-bottom: 10px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    min-height: 45px;
-}
-
-.confirm-action-button {
-    padding: 8px 15px;
-    font-size: 1em;
-    cursor: pointer;
-    border: 1px solid #4cae4c;
-    background-color: #5cb85c;
-    color: white;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-}
-
-.confirm-action-button:hover {
-    background-color: #449d44;
-}
-
-.confirm-action-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-    border-color: #bbbbbb;
-}
-
-#simulation-container {
-    border: 1px solid #777;
-    padding: 15px;
-    margin-top: 20px;
-    width: 90%;
-    max-width: 1100px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.1);
-}
-#simulation-container h2,
-#simulation-container h3,
-#simulation-container label,
-#simulation-container p,
-#simulation-container button {
-    color: #e0e0e0;
-}
-
-.simulation-section {
-    border: 1px dashed #aaa;
-    padding: 10px;
-     border-radius: 6px;
-}
-.slider-group {
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.slider-group label {
-    min-width: 100px;
-    text-align: right;
-    color: #e0e0e0;
-}
-.slider-group input[type="range"] {
-    flex-grow: 1;
-}
-.slider-group .value-display {
-    min-width: 30px;
-    font-family: monospace;
-    text-align: right;
-     color: #e0e0e0;
-}
-#simulation-controls {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-top: 10px;
-}
-#simulation-controls label {
-     color: #e0e0e0;
-}
-#simulation-controls input[type="number"] {
-    background-color: #555;
-    color: #e0e0e0;
-    border: 1px solid #888;
-    border-radius: 4px;
-    padding: 3px 5px;
-}
-#simulation-controls button {
-     padding: 6px 12px;
-    font-size: 0.9em;
-    cursor: pointer;
-    border: 1px solid #999;
-    background-color: #6c757d;
-    color: white;
-    border-radius: 4px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-#simulation-controls button:hover {
-    background-color: #5a6268;
-    border-color: #777;
-}
-#simulation-results-container {
-    color: #e0e0e0;
-}
-#simulation-results-container pre {
-    background-color: rgba(0, 0, 0, 0.2);
-    padding: 10px;
-    border-radius: 4px;
-    color: #f0f0f0;
-    border: 1px solid #666;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-
-#simulation-chart-container {
-    color: #e0e0e0;
-}
-#bar-chart-area {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end;
-    width: 100%;
-    height: 250px;
-    padding: 20px 10px 10px 10px;
-    box-sizing: border-box;
-    border: 1px solid #555;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
+    
+    /* FIX: Add these two lines to apply the visual offset */
     position: relative;
+    transform: translateX(-140px); 
 }
 
-.bar-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    width: 18%;
-    color: #e0e0e0;
-}
-
-.bar-value {
-    font-size: 0.9em;
-    margin-bottom: 5px;
-    min-height: 1.2em;
-}
-
-.bar {
-    width: 70%;
-    background-color: #4a90e2;
-    border: 1px solid #357abd;
-    border-bottom: none;
-    box-sizing: border-box;
-    transition: height 0.5s ease-out;
-    min-height: 1px;
-}
-
+#log-container { width: 90%; max-width: 1100px; border: 1px solid #999; margin-top: 80px; background-color: #313131; border-radius: 8px; overflow: hidden; }
+#log-box { height: 180px; overflow-y: scroll; padding: 8px; background-color: #292828; color: #b3b3b3; font-size: 0.9em; }
+#log-box p { margin: 2px 0; padding: 1px 0; border-bottom: 1px dotted #ddd; }
+#log-box p:last-child { border-bottom: none; }
+.turn-highlight { box-shadow: 0 0 10px 3px gold !important; border-color: gold !important; }
+.dealer-indicator { color: #b22222; font-weight: bold; font-size: 0.9em; margin-left: 5px; }
+.tricks-highlight { color: #d9534f; font-weight: bold; font-size: 1.1em; }
+.player-action-log { color: #d20058; font-style: italic; font-weight: bold; font-size: 1em; margin-top: 5px !important; }
+.action-button { padding: 8px 15px; font-size: 1em; cursor: pointer; border-radius: 4px; transition: background-color 0.2s ease, border-color 0.2s ease; border: 1px solid #999; background-color: #e0e0e0; color: #333; }
+.action-button:hover { background-color: #d0d0d0; border-color: #777; }
+.action-button:disabled { background-color: #cccccc; color: #888888; cursor: not-allowed; border-color: #bbbbbb; }
+.next-step-button-actionarea { background-color: #5cb85c; color: white; border-color: #4cae4c; }
+.next-step-button-actionarea:hover { background-color: #449d44; }
+.next-step-button-actionarea:disabled { background-color: #cccccc; color: #888888; cursor: not-allowed; border-color: #bbbbbb; }
+.confirm-action-button { padding: 8px 15px; font-size: 1em; cursor: pointer; border: 1px solid #4cae4c; background-color: #5cb85c; color: white; border-radius: 4px; transition: background-color 0.2s ease; }
+.confirm-action-button:hover { background-color: #449d44; }
+.confirm-action-button:disabled { background-color: #cccccc; cursor: not-allowed; border-color: #bbbbbb; }
+#simulation-container { border: 1px solid #777; padding: 15px; margin-top: 20px; width: 90%; max-width: 1100px; display: flex; flex-direction: column; gap: 15px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.1); }
+#simulation-container h2, #simulation-container h3, #simulation-container label, #simulation-container p, #simulation-container button { color: #e0e0e0; }
+.simulation-section { border: 1px dashed #aaa; padding: 10px; border-radius: 6px; }
+.slider-group { margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.slider-group label { min-width: 100px; text-align: right; color: #e0e0e0; }
+.slider-group input[type="range"] { flex-grow: 1; }
+.slider-group .value-display { min-width: 30px; font-family: monospace; text-align: right; color: #e0e0e0; }
+#simulation-controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+#simulation-controls label { color: #e0e0e0; }
+#simulation-controls input[type="number"] { background-color: #555; color: #e0e0e0; border: 1px solid #888; border-radius: 4px; padding: 3px 5px; }
+#simulation-controls button { padding: 6px 12px; font-size: 0.9em; cursor: pointer; border: 1px solid #999; background-color: #6c757d; color: white; border-radius: 4px; transition: background-color 0.2s ease, border-color 0.2s ease; }
+#simulation-controls button:hover { background-color: #5a6268; border-color: #777; }
+#simulation-results-container { color: #e0e0e0; }
+#simulation-results-container pre { background-color: rgba(0, 0, 0, 0.2); padding: 10px; border-radius: 4px; color: #f0f0f0; border: 1px solid #666; white-space: pre-wrap; word-break: break-all; }
+#simulation-chart-container { color: #e0e0e0; }
+#bar-chart-area { display: flex; justify-content: space-around; align-items: flex-end; width: 100%; height: 250px; padding: 20px 10px 10px 10px; box-sizing: border-box; border: 1px solid #555; background-color: rgba(0, 0, 0, 0.1); border-radius: 4px; position: relative; }
+.bar-container { display: flex; flex-direction: column; align-items: center; text-align: center; width: 18%; color: #e0e0e0; }
+.bar-value { font-size: 0.9em; margin-bottom: 5px; min-height: 1.2em; }
+.bar { width: 70%; background-color: #4a90e2; border: 1px solid #357abd; border-bottom: none; box-sizing: border-box; transition: height 0.5s ease-out; min-height: 1px; }
 .bar-p0 { background-color: #5cb85c; border-color: #4cae4c; }
 .bar-p1 { background-color: #f0ad4e; border-color: #eea236; }
 .bar-p2 { background-color: #d9534f; border-color: #d43f3a; }
 .bar-p3 { background-color: #5bc0de; border-color: #46b8da; }
+.bar-label { margin-top: 8px; font-size: 0.85em; font-weight: bold; }
+#bar-chart-area::before { content: ''; position: absolute; bottom: 30px; left: 0; right: 0; height: 1px; z-index: -1; }
+#simulation-progress-container { width: 100%; background-color: #555; border-radius: 4px; padding: 2px; box-sizing: border-box; margin-top: 10px; position: relative; height: 24px; }
+#simulation-progress-bar-fill { width: 0%; height: 20px; background-color: #4CAF50; border-radius: 3px; transition: width 0.1s linear; text-align: center; line-height: 20px; color: white; }
+#simulation-progress-text { position: absolute; width: 100%; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8em; color: #fff; text-shadow: 1px 1px 1px #000; pointer-events: none; }
+.strategy-row-header { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px; align-items: center; width: 100%; }
+.strategy-row-header h4 { margin: 5px 0; text-align: center; }
+.strategy-row-header h4:first-child { text-align: left; }
+.strategy-row-header h4:last-child { text-align: right; }
+.strategy-row { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px; align-items: center; width: 100%; margin-bottom: 12px; }
+.strategy-row label { text-align: center; font-size: 0.9em; color: #ccc; justify-self: center; }
+.strategy-row input[type="checkbox"], .strategy-row select { justify-self: center; }
+.slider-with-value { display: flex; align-items: center; gap: 10px; justify-self: stretch; }
+.slider-with-value input[type="range"] { flex-grow: 1; }
+.slider-with-value .value-display { min-width: 25px; text-align: right; }
+#trump-card-display { position: relative; }
+.trump-card-stacked { position: absolute; top: 0; }
+.trump-card-stacked.bottom-card { left: 0; z-index: 1; }
+.trump-card-stacked.top-card { left: 30%; top: 3%; z-index: 2; }
 
-.bar-label {
-    margin-top: 8px;
-    font-size: 0.85em;
-    font-weight: bold;
-}
+#rotate-warning-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #1a1a1a; z-index: 2000; display: none; flex-direction: column; justify-content: center; align-items: center; color: #e0e0e0; text-align: center; font-size: 1.2em; padding: 20px; box-sizing: border-box; }
+#rotate-warning-overlay svg { width: 60px; height: 60px; margin-bottom: 20px; animation: rotate-animation 2.5s infinite ease-in-out; }
+@keyframes rotate-animation { 0% { transform: rotate(0deg); } 40% { transform: rotate(90deg); } 60% { transform: rotate(90deg); } 100% { transform: rotate(0deg); } }
 
-#bar-chart-area::before {
-    content: '';
-    position: absolute;
-    bottom: 30px;
-    left: 0;
-    right: 0;
-    height: 1px;
-    z-index: -1;
-}
-
-#simulation-progress-container {
-    width: 100%;
-    background-color: #555;
-    border-radius: 4px;
-    padding: 2px;
-    box-sizing: border-box;
-    margin-top: 10px;
-    position: relative;
-    height: 24px;
-}
-
-#simulation-progress-bar-fill {
-    width: 0%;
-    height: 20px;
-    background-color: #4CAF50;
-    border-radius: 3px;
-    transition: width 0.1s linear;
-    text-align: center;
-    line-height: 20px;
-    color: white;
-}
-
-#simulation-progress-text {
-    position: absolute;
-    width: 100%;
-    text-align: center;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 0.8em;
-    color: #fff;
-    text-shadow: 1px 1px 1px #000;
-    pointer-events: none;
-}
-
-.strategy-row-header {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    gap: 20px;
-    align-items: center;
-    width: 100%;
-}
-.strategy-row-header h4 {
-    margin: 5px 0;
-    text-align: center;
-}
-.strategy-row-header h4:first-child {
-    text-align: left;
-}
-.strategy-row-header h4:last-child {
-    text-align: right;
-}
-
-.strategy-row {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    gap: 20px;
-    align-items: center;
-    width: 100%;
-    margin-bottom: 12px;
-}
-
-.strategy-row label {
-    text-align: center;
-    font-size: 0.9em;
-    color: #ccc;
-    justify-self: center;
-}
-
-.strategy-row input[type="checkbox"],
-.strategy-row select {
-    justify-self: center;
-}
-
-.slider-with-value {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-self: stretch;
-}
-.slider-with-value input[type="range"] {
-    flex-grow: 1;
-}
-.slider-with-value .value-display {
-    min-width: 25px;
-    text-align: right;
-}
-
-#trump-card-display {
-    position: relative;
-}
-
-.trump-card-stacked {
-    position: absolute;
-    top: 0;
-}
-
-.trump-card-stacked.bottom-card {
-    left: 0;
-    z-index: 1;
-}
-
-.trump-card-stacked.top-card {
-    left: 30%;
-    top: 3%;
-    z-index: 2;
-}
-
-/* --- Rotation Warning Overlay --- */
-#rotate-warning-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #1a1a1a;
-    z-index: 2000;
-    display: none; /* Hidden by default */
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: #e0e0e0;
-    text-align: center;
-    font-size: 1.2em;
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-#rotate-warning-overlay svg {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 20px;
-    animation: rotate-animation 2.5s infinite ease-in-out;
-}
-
-@keyframes rotate-animation {
-    0% { transform: rotate(0deg); }
-    40% { transform: rotate(90deg); }
-    60% { transform: rotate(90deg); }
-    100% { transform: rotate(0deg); }
-}
-
-/* --- Mobile-Specific Media Queries --- */
 @media (orientation: portrait) {
-    #rotate-warning-overlay {
-        display: flex; /* Show the warning in portrait mode */
-    }
-    
-    /* Also ensure the game content is hidden in portrait */
-    #game-board, #controls, #dynamic-buttons-master-container, #log-container, #simulation-container {
-        display: none !important;
-    }
+    #rotate-warning-overlay { display: flex; }
+    #game-board, #main-controls-container, #log-container, #simulation-container { display: none !important; }
 }
