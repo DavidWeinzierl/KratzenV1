@@ -134,7 +134,7 @@ body {
 
 #main-controls-container {
     width: 100%;
-    margin: 20px 0;
+    margin: 0px 0;
     padding: 0 5%;
     box-sizing: border-box;
     display: flex;
@@ -144,6 +144,7 @@ body {
 }
 
 #settings-column {
+    margin-top: 20px;
     flex-basis: 100px;
     flex-shrink: 0;
     display: flex;
@@ -170,7 +171,7 @@ body {
 
 #dynamic-buttons-master-container {
     flex-grow: 1;
-    margin-top: 10px;
+    margin-top: 0px;
     margin-bottom: 10px;
     display: flex;
     gap: 10px;
