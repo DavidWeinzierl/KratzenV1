@@ -182,7 +182,7 @@ body {
     transform: translateX(-140px);
 }
 
-#log-container { width: 90%; max-width: 1100px; border: 1px solid #999; margin-top: 15px; background-color: #313131; border-radius: 8px; overflow: hidden; }
+#log-container { width: 90%; max-width: 1100px; border: 1px solid #999; margin-top: 100px; background-color: #313131; border-radius: 8px; overflow: hidden; }
 #log-box { height: 180px; overflow-y: scroll; padding: 8px; background-color: #292828; color: #b3b3b3; font-size: 0.9em; }
 #log-box p { margin: 2px 0; padding: 1px 0; border-bottom: 1px dotted #ddd; }
 #log-box p:last-child { border-bottom: none; }
