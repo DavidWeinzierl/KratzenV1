@@ -251,11 +251,11 @@ body {
     #game-board, #main-controls-container, #log-container, #simulation-container { display: none !important; }
 }
 
-/* RE-ADD THIS MEDIA QUERY TO THE END OF style.css */
-/* Scale down the control areas on mobile landscape for better fit */
-@media (max-width: 812px) and (orientation: landscape) {
+/* Scale down the control areas on devices where the primary input is touch (coarse) 
+   and the device is in landscape mode. This is much more reliable than screen width. */
+@media (pointer: coarse) and (orientation: landscape) {
     #settings-column,
     #dynamic-buttons-master-container {
-        zoom: 0.5;
+        zoom: 0.75; /* Using 75% as 50% can be very small. Adjust as needed. */
     }
 }
