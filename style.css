@@ -74,7 +74,7 @@ body {
 #game-board {
     border: 1px solid black;
     padding: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     position: relative;
     box-sizing: border-box;
     width: 98vw;
@@ -134,9 +134,9 @@ body {
 
 #main-controls-container {
     width: 100%;
-    margin: 0px 0;
     padding: 0 5%;
     box-sizing: border-box;
+    margin: 20px auto;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -144,13 +144,13 @@ body {
 }
 
 #settings-column {
-    margin-top: 20px;
-    flex-basis: 100px;
+    flex-basis: 280px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
+    min-width: 0;
 }
 
 #settings-column h3 {
@@ -171,8 +171,6 @@ body {
 
 #dynamic-buttons-master-container {
     flex-grow: 1;
-    margin-top: 0px;
-    margin-bottom: 10px;
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -180,13 +178,11 @@ body {
     flex-wrap: wrap;
     min-height: 80px;
     padding: 5px 0;
-    
-    /* FIX: Add these two lines to apply the visual offset */
     position: relative;
-    transform: translateX(-140px); 
+    transform: translateX(-140px);
 }
 
-#log-container { width: 90%; max-width: 1100px; border: 1px solid #999; margin-top: 80px; background-color: #313131; border-radius: 8px; overflow: hidden; }
+#log-container { width: 90%; max-width: 1100px; border: 1px solid #999; margin-top: 15px; background-color: #313131; border-radius: 8px; overflow: hidden; }
 #log-box { height: 180px; overflow-y: scroll; padding: 8px; background-color: #292828; color: #b3b3b3; font-size: 0.9em; }
 #log-box p { margin: 2px 0; padding: 1px 0; border-bottom: 1px dotted #ddd; }
 #log-box p:last-child { border-bottom: none; }
@@ -253,4 +249,12 @@ body {
 @media (orientation: portrait) {
     #rotate-warning-overlay { display: flex; }
     #game-board, #main-controls-container, #log-container, #simulation-container { display: none !important; }
+}
+
+/* Scale down the control areas on mobile landscape for better fit */
+@media (max-width: 812px) and (orientation: landscape) {
+    #settings-column,
+    #dynamic-buttons-master-container {
+        zoom: 0.5;
+    }
 }
