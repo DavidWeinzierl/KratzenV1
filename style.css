@@ -150,7 +150,7 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
-    min-width: 0;
+    min-width: 0; 
 }
 
 #settings-column h3 {
@@ -251,6 +251,7 @@ body {
     #game-board, #main-controls-container, #log-container, #simulation-container { display: none !important; }
 }
 
+/* RE-ADD THIS MEDIA QUERY TO THE END OF style.css */
 /* Scale down the control areas on mobile landscape for better fit */
 @media (max-width: 812px) and (orientation: landscape) {
     #settings-column,
