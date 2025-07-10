@@ -14,12 +14,22 @@ import {
 import { RANKS, SUITS, WELI_RANK, WELI_SUIT, getCardImageFilename } from './constants.js';
 import { logMessage } from './logger.js';
 
+// --- Preload all card images for smoother animations ---
 async function preloadCardImages() {
     logMessage("Preloading card images...");
     const allCardsToLoad = [];
-    for (const suit of SUITS) { for (const rank of RANKS) { allCardsToLoad.push({ suit, rank }); } }
+
+    // Add all standard suit cards
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            allCardsToLoad.push({ suit, rank });
+        }
+    }
+    // Add the Weli
     allCardsToLoad.push({ suit: WELI_SUIT, rank: WELI_RANK });
+    // Add the card back
     allCardsToLoad.push(null);
+
     const imagePromises = allCardsToLoad.map(card => {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -29,50 +39,91 @@ async function preloadCardImages() {
             img.onerror = () => reject(filename);
         });
     });
-    try { await Promise.all(imagePromises); logMessage("All card images preloaded successfully."); } 
-    catch (failedFilename) { logMessage(`Error: Failed to preload image: ${failedFilename}`); console.error(`Failed to preload image: img/${failedFilename}`); }
+
+    try {
+        await Promise.all(imagePromises);
+        logMessage("All card images preloaded successfully.");
+    } catch (failedFilename) {
+        logMessage(`Error: Failed to preload image: ${failedFilename}`);
+        console.error(`Failed to preload image: img/${failedFilename}`);
+    }
 }
 
+
+// --- Helper function to map virtual speed to seconds ---
 function mapVirtualSpeedToSeconds(virtualSpeed) {
-    const minVirtualSpeed = 1, maxVirtualSpeed = 10, maxSeconds = 0.5, minSeconds = 0.1;
+    // virtualSpeed is 1 to 10
+    // We want 1 -> 0.5s (slowest), 10 -> 0.1s (fastest)
+    const minVirtualSpeed = 1;
+    const maxVirtualSpeed = 10;
+    const maxSeconds = 0.5; // Corresponds to minVirtualSpeed
+    const minSeconds = 0.1; // Corresponds to maxVirtualSpeed
+
     const clampedVirtualSpeed = Math.max(minVirtualSpeed, Math.min(maxVirtualSpeed, virtualSpeed));
+
     if (maxVirtualSpeed === minVirtualSpeed) return maxSeconds;
-    const seconds = maxSeconds - ((clampedVirtualSpeed - minVirtualSpeed) * (maxSeconds - minSeconds)) / (maxVirtualSpeed - minVirtualSpeed);
+
+    const seconds = maxSeconds - ( (clampedVirtualSpeed - minVirtualSpeed) * (maxSeconds - minSeconds) ) / (maxVirtualSpeed - minVirtualSpeed);
     return parseFloat(seconds.toFixed(2));
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Loaded. Initializing Simulation.");
+
     await preloadCardImages();
 
+    // --- START SCREEN LOGIC ---
     const playButton = document.getElementById('play-button');
     const startOverlay = document.getElementById('start-overlay');
     
     if (playButton && startOverlay) {
         playButton.addEventListener('click', async () => {
-            const isMobile = window.innerWidth <= 1024;
-            if (isMobile) {
+            
+            // --- FIX: This is the new, more reliable mobile detection logic ---
+            // It checks for touch capability AND a "phone-like" screen width.
+            const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            const isLikelyMobile = hasTouch && window.innerWidth <= 920; // 920px covers most phones/small tablets in landscape
+
+            if (isLikelyMobile) {
+                logMessage("Mobile device detected. Attempting fullscreen and landscape lock.");
                 const docEl = document.documentElement;
                 const orientationLockSupported = 'orientation' in screen && typeof screen.orientation.lock === 'function';
+
                 try {
-                    if (docEl.requestFullscreen) { await docEl.requestFullscreen(); } 
-                    else if (docEl.webkitRequestFullscreen) { await docEl.webkitRequestFullscreen(); }
-                    if (orientationLockSupported) { await screen.orientation.lock('landscape'); logMessage("Entered fullscreen and locked orientation to landscape."); } 
-                    else { logMessage("Entered fullscreen, but orientation lock is not supported."); }
+                    if (docEl.requestFullscreen) {
+                        await docEl.requestFullscreen();
+                    } else if (docEl.webkitRequestFullscreen) { // Safari
+                        await docEl.webkitRequestFullscreen();
+                    }
+                    
+                    if (orientationLockSupported) {
+                        await screen.orientation.lock('landscape');
+                        logMessage("Entered fullscreen and locked orientation to landscape.");
+                    } else {
+                        logMessage("Entered fullscreen, but orientation lock is not supported.");
+                    }
                 } catch (err) {
                     logMessage(`Could not enter fullscreen or lock orientation: ${err.message}`);
                     console.error("Fullscreen/Lock Error:", err);
                 }
-            } else { logMessage("Desktop detected, skipping fullscreen."); }
+            } else {
+                logMessage("Desktop or large tablet detected, skipping fullscreen.");
+            }
+            // --- END OF FIX ---
 
+
+            // This part runs for both mobile and desktop
             startOverlay.style.display = 'none';
+            
             document.getElementById('game-board').style.display = 'block';
             document.getElementById('main-controls-container').style.display = 'flex';
             document.getElementById('log-container').style.display = 'block';
             document.getElementById('simulation-container').style.display = 'flex';
+            
             initializeGame();
         });
     } else {
+        // Fallback for development if the start screen is removed
         console.warn("#play-button or #start-overlay not found. Bypassing start screen.");
         document.getElementById('game-board').style.display = 'block';
         document.getElementById('main-controls-container').style.display = 'flex';
@@ -80,6 +131,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('simulation-container').style.display = 'flex';
         initializeGame();
     }
+    
+    // ... (The rest of the file remains exactly the same and is omitted for brevity) ...
 
     const animationSpeedSlider = document.getElementById('animation-speed-slider');
     const animationSpeedValueSpan = document.getElementById('animation-speed-value');
